@@ -1,13 +1,22 @@
 from functools import wraps
 import os
+import io
 from urllib.parse import urljoin, urlparse
+import requests
+from pathlib import Path
+
+from bs4 import BeautifulSoup
+import secrets
+import xml.etree.ElementTree as ET
+
 from flask import Blueprint, Flask, Response, make_response, redirect, request, session, stream_with_context, url_for
 from flask import redirect, request
+
 # from flask_oidc import OpenIDConnect
-import requests
-from bs4 import BeautifulSoup
-from pathlib import Path
-import secrets
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     import gfal2
@@ -41,6 +50,7 @@ def create_app():
     app.config['CTADS_CABUNDLE'] = os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
     app.config['CTADS_CLIENTCERT'] = os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
     app.config['CTADS_DISABLE_ALL_AUTH'] = False
+    app.config['CTADS_UPSTREAM_ROOT'] = "https://dcache.cta.cscs.ch:2880/"    
 
     return app
 
@@ -83,14 +93,6 @@ def authenticated(f):
 
 @app.before_request
 def clear_trailing():
-    print("\033[31mbefore_request\033[0m")
-
-    # for rule in app.url_map.iter_rules():
-    #     if "GET" in rule.methods:
-    #         url = url_for(rule.endpoint, **(rule.defaults or {}))
-    #         # links.append((url, rule.endpoint))
-    #         print(url, rule.endpoint)
-
     rp = request.path
     if rp != '/' and rp.endswith('/'):
         print("redirect", rp[:-1])
@@ -109,10 +111,19 @@ def login():
     return f"Welcome {user} access token {token}"
 
 
-def iter_dirlist(base, page):
-    soup = BeautifulSoup(page, 'html.parser')
-    # return [base + node.get('href') for node in soup.find_all('a') if node.get('href').startswith('../../..')]
-    return [urljoin(base, urlparse(node.get('href')).path) for node in soup.find_all('a') if node.get('href').startswith('..')]
+
+def get_session():
+    session = requests.Session()
+    session.verify = app.config['CTADS_CABUNDLE']
+    session.cert = app.config['CTADS_CLIENTCERT']
+
+    return session
+
+
+@app.route(url_prefix + "/health")
+def health():    
+    return f"Welcome to the health page"
+
     
 
 @app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'basepath': None})
@@ -120,38 +131,62 @@ def iter_dirlist(base, page):
 @authenticated
 # @oidc.require_login
 # @oidc.accept_token(require_token=True)
-def fetch(user, basepath):
+def list(user, basepath):
     host = request.headers['Host']
     
     baseurl = request.args.get("url", default="https://dcache.cta.cscs.ch:2880/" + (basepath or ""))
     # TODO: here do a permission check; in the future, the check will be done with rucio maybe
 
-    session = requests.Session()
-    session.verify = app.config['CTADS_CABUNDLE']
-    session.cert = app.config['CTADS_CLIENTCERT'] 
+    session = get_session()
 
-    content = session.get(baseurl).content
+    r = session.request('PROPFIND', baseurl, headers={'Depth': '1'})
 
-    # print("content", content)
+    logger.debug("request: %s", r.request.headers)
+    logger.debug("response: %s", r.content.decode())
+            
+    try:
+        tree = ET.parse(io.BytesIO(r.content))
+        root = tree.getroot()
+    except ET.ParseError as e:
+        logger.error("Error parsing XML %s in %s", e, r.content)
+        raise
 
-    # TODO: better
-    if b'Ecole polytechnique federale de Lausanne, EPFL/OU=SCITAS/CN=Volodymyr Savchenko' in content:
-        urls = []
-        for url in iter_dirlist(basepath, content):
-            urls.append("http://" + host + "/fetch/" + url)
+    logger.info("xml: %s", root)
 
-        return {'urls' :urls, 'user': user}
-    else:
-        headers = {} 
-        def generate():
-            with session.get(baseurl, stream=True) as f:
-                print(f.headers)
-                # headers['Content-Type'] = f.headers['content-type']
-                print("opened", f)
-                for r in f.iter_content(chunk_size=1024*1024):                    
-                    yield r
+    for i in root.iter('{DAV:}response'):
+        logger.info("i: %s", i)
+        for j in i.iter():
+            logger.info("j: %s", j.text)
 
-        return Response(stream_with_context(generate())), headers
+    # curl -i -X PROPFIND http://example.com/webdav/ --upload-file - -H "Depth: 1"
+    # urls = []
+    # for url in iter_dirlist(basepath, content):
+    #     urls.append("http://" + host + "/fetch/" + url)
+
+    return urls
+    # TODO print useful logs for loki
+
+
+@app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'basepath': None})
+@app.route(url_prefix + '/fetch/<path:subpath>', methods=["GET", "POST"])
+@authenticated
+# @oidc.require_login
+# @oidc.accept_token(require_token=True)
+def fetch(user, subpath):
+    url = request.args.get("url", default=app.config['CTADS_UPSTREAM_ROOT'] + (subpath or ""))
+
+    session = get_session()
+    
+    headers = {} 
+    def generate():
+        with session.get(url, stream=True) as f:
+            logger.debug("got response headers: %s", f.headers)
+            # headers['Content-Type'] = f.headers['content-type']
+            logger.info("opened %s", f)
+            for r in f.iter_content(chunk_size=1024*1024):
+                yield r
+
+    return Response(stream_with_context(generate())), headers
     # TODO print useful logs for loki
 
 
