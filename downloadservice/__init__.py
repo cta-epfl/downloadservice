@@ -205,6 +205,30 @@ def fetch(user, subpath):
     # TODO print useful logs for loki
 
 
+
+
+@app.route(url_prefix + '/upload', methods=["POST"], defaults={'subpath': None})
+@authenticated
+def upload(user, subpath):
+    url = request.args.get("url", default=app.config['CTADS_UPSTREAM_ROOT'] + (subpath or ""))
+
+    upstream_session = get_upstream_session()
+
+    # TODO: first simple and safe mechanism would be to let users upload only to their own specialized directory with hashed name
+    
+    # headers = {} 
+    # def generate():
+    #     with upstream_session.get(url, stream=True) as f:
+    #         logger.debug("got response headers: %s", f.headers)
+    #         # headers['Content-Type'] = f.headers['content-type']
+    #         logger.info("opened %s", f)
+    #         for r in f.iter_content(chunk_size=1024*1024):
+    #             yield r
+
+    # return Response(stream_with_context(generate())), headers
+    # TODO print useful logs for loki
+
+
 @app.route(url_prefix + '/oauth_callback')
 def oauth_callback():
     code = request.args.get('code', None)
