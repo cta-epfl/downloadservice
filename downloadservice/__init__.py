@@ -95,11 +95,11 @@ def authenticated(f):
 def clear_trailing():
     rp = request.path
     if rp != '/' and rp.endswith('/'):
-        print("redirect", rp[:-1])
+        logger.warning("redirect %s", rp[:-1])
         return redirect(rp[:-1])
     
 
-@app.route(url_prefix + "/")
+@app.route(url_prefix)
 def login():
     token = session.get("token") or request.args.get('token')
 
@@ -112,7 +112,7 @@ def login():
 
 
 
-def get_session():
+def get_upstream_session():
     session = requests.Session()
     session.verify = app.config['CTADS_CABUNDLE']
     session.cert = app.config['CTADS_CLIENTCERT']
@@ -124,14 +124,17 @@ def get_session():
 def health():    
     url = app.config['CTADS_UPSTREAM_ROOT'] + "pnfs/cta.cscs.ch/lst"
 
-    session = get_session()
-    r = session.request('PROPFIND', url, headers={'Depth': '1'})
+    upstream_session = get_upstream_session()
 
-    if r.status_code == 200:
-        return f"OK", 200
-    else:
+    try:
+        r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'}, timeout=5)
+        if r.status_code == 200:
+            return f"OK", 200
+        else:
+            return f"Unhealthy!", 500
+    except requests.exceptions.ReadTimeout:
         return f"Unhealthy!", 500
-
+    
     
 
 @app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'basepath': None})
@@ -145,9 +148,9 @@ def list(user, basepath):
     baseurl = request.args.get("url", default=app.config['CTADS_UPSTREAM_ROOT'] + (basepath or ""))
     # TODO: here do a permission check; in the future, the check will be done with rucio maybe
 
-    session = get_session()
+    upstream_session = get_upstream_session()
 
-    r = session.request('PROPFIND', baseurl, headers={'Depth': '1'})
+    r = upstream_session.request('PROPFIND', baseurl, headers={'Depth': '1'})
 
     logger.debug("request: %s", r.request.headers)
     logger.debug("response: %s", r.content.decode())
@@ -183,11 +186,11 @@ def list(user, basepath):
 def fetch(user, subpath):
     url = request.args.get("url", default=app.config['CTADS_UPSTREAM_ROOT'] + (subpath or ""))
 
-    session = get_session()
+    upstream_session = get_upstream_session()
     
     headers = {} 
     def generate():
-        with session.get(url, stream=True) as f:
+        with upstream_session.get(url, stream=True) as f:
             logger.debug("got response headers: %s", f.headers)
             # headers['Content-Type'] = f.headers['content-type']
             logger.info("opened %s", f)
