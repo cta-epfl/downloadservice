@@ -2,6 +2,7 @@ from functools import wraps
 import os
 from urllib.parse import urljoin, urlparse
 from flask import Blueprint, Flask, Response, make_response, redirect, request, session, stream_with_context, url_for
+from flask import redirect, request
 # from flask_oidc import OpenIDConnect
 import requests
 from bs4 import BeautifulSoup
@@ -24,31 +25,39 @@ except Exception as e:
 bp = Blueprint('downloadservice', __name__,
                 template_folder='templates')
 
-app = Flask(__name__)
-
 url_prefix = os.getenv("JUPYTERHUB_SERVICE_PREFIX", "").rstrip("/")
 
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', secrets.token_bytes(32))
-app.secret_key = app.config['SECRET_KEY']
-
-app.config['OIDC_CLIENT_SECRETS'] = 'secrets.json'
-app.config['OIDC_COOKIE_SECURE'] = False
-app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
-app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
-app.config['CTADS_CABUNDLE'] = os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
-app.config['CTADS_CLIENTCERT'] = os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
+def create_app():
+    app = Flask(__name__)
 
 
-disable_all_auth = os.environ.get('CTADS_DISABLE_ALL_AUTH', False)
+    app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', secrets.token_bytes(32))
+    app.secret_key = app.config['SECRET_KEY']
+
+    app.config['OIDC_CLIENT_SECRETS'] = 'secrets.json'
+    app.config['OIDC_COOKIE_SECURE'] = False
+    app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
+    app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
+    app.config['CTADS_CABUNDLE'] = os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
+    app.config['CTADS_CLIENTCERT'] = os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
+    app.config['CTADS_DISABLE_ALL_AUTH'] = False
+
+    return app
+
+
+app = create_app()
+
 
 def authenticated(f):
     """Decorator for authenticating with the Hub via OAuth"""
 
-    if disable_all_auth:
-        return f
-    else:
-        @wraps(f)
-        def decorated(*args, **kwargs):
+    print("authenticated check:", app.config)
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if app.config['CTADS_DISABLE_ALL_AUTH']:
+            return f("anonymous", *args, **kwargs)
+        else:
             token = session.get("token") or request.args.get('token')
 
             if token:
@@ -69,10 +78,25 @@ def authenticated(f):
                 response.set_cookie(auth.state_cookie_name, state)
                 return response
 
-        return decorated
+    return decorated
 
 
-@app.route(url_prefix)
+@app.before_request
+def clear_trailing():
+    print("\033[31mbefore_request\033[0m")
+
+    # for rule in app.url_map.iter_rules():
+    #     if "GET" in rule.methods:
+    #         url = url_for(rule.endpoint, **(rule.defaults or {}))
+    #         # links.append((url, rule.endpoint))
+    #         print(url, rule.endpoint)
+
+    rp = request.path
+    if rp != '/' and rp.endswith('/'):
+        print("redirect", rp[:-1])
+        return redirect(rp[:-1])
+    
+
 @app.route(url_prefix + "/")
 def login():
     token = session.get("token") or request.args.get('token')
@@ -91,12 +115,12 @@ def iter_dirlist(base, page):
     return [urljoin(base, urlparse(node.get('href')).path) for node in soup.find_all('a') if node.get('href').startswith('..')]
     
 
-@app.route(url_prefix + '/fetch/', methods=["GET", "POST"], defaults={'basepath': None})
+@app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'basepath': None})
 @app.route(url_prefix + '/fetch/<path:basepath>', methods=["GET", "POST"])
 @authenticated
 # @oidc.require_login
 # @oidc.accept_token(require_token=True)
-def list(user, basepath):
+def fetch(user, basepath):
     host = request.headers['Host']
     
     baseurl = request.args.get("url", default="https://dcache.cta.cscs.ch:2880/" + (basepath or ""))
