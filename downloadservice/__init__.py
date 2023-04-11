@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import secrets
 import xml.etree.ElementTree as ET
 
-from flask import Blueprint, Flask, Response, make_response, redirect, request, session, stream_with_context, url_for
+from flask import Blueprint, Flask, Response, jsonify, make_response, redirect, request, session, stream_with_context, url_for
 from flask import redirect, request
 
 # from flask_oidc import OpenIDConnect
@@ -99,7 +99,7 @@ def clear_trailing():
         return redirect(rp[:-1])
     
 
-@app.route(url_prefix)
+@app.route(url_prefix + "/")
 def login():
     token = session.get("token") or request.args.get('token')
 
@@ -121,24 +121,26 @@ def get_upstream_session():
 
 
 @app.route(url_prefix + "/health")
-def health():    
+def health():
     url = app.config['CTADS_UPSTREAM_ROOT'] + "pnfs/cta.cscs.ch/lst"
 
     upstream_session = get_upstream_session()
 
     try:
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'}, timeout=5)
-        if r.status_code == 200:
+        if r.status_code in [200, 207]:
             return f"OK", 200
         else:
+            logger.error("service is unhealthy: %s", r.content.decode())
             return f"Unhealthy!", 500
-    except requests.exceptions.ReadTimeout:
+    except requests.exceptions.ReadTimeout as e:
+        logger.error("service is unhealthy: %s", e)
         return f"Unhealthy!", 500
     
     
 
-@app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'basepath': None})
-@app.route(url_prefix + '/fetch/<path:basepath>', methods=["GET", "POST"])
+@app.route(url_prefix + '/list', methods=["GET", "POST"], defaults={'basepath': None})
+@app.route(url_prefix + '/list/<path:basepath>', methods=["GET", "POST"])
 @authenticated
 # @oidc.require_login
 # @oidc.accept_token(require_token=True)
@@ -164,21 +166,23 @@ def list(user, basepath):
 
     logger.info("xml: %s", root)
 
+    urls = []
+
+    keymap = dict([('{DAV:}href', 'href'), ('{DAV:}getcontentlength', 'size'), ('{DAV:}getlastmodified', 'mtime')])
+
     for i in root.iter('{DAV:}response'):
-        logger.info("i: %s", i)
+        logger.debug("i: %s", i)
+        urls.append({})
         for j in i.iter():
-            logger.info("j: %s", j.text)
+            logger.debug("> j: %s %s", j.tag, j.text)
+            if j.tag in keymap:
+                urls[-1][keymap[j.tag]] = j.text
 
-    # curl -i -X PROPFIND http://example.com/webdav/ --upload-file - -H "Depth: 1"
-    # urls = []
-    # for url in iter_dirlist(basepath, content):
-    #     urls.append("http://" + host + "/fetch/" + url)
-
-    return urls
+    return jsonify(urls)
     # TODO print useful logs for loki
 
 
-@app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'basepath': None})
+@app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'subpath': None})
 @app.route(url_prefix + '/fetch/<path:subpath>', methods=["GET", "POST"])
 @authenticated
 # @oidc.require_login

@@ -20,22 +20,19 @@ def app():
     return downloadservice.app
 
 
-def test_list(client: Any):
-    r = client.get(url_for('list'))
-    assert r.status_code == 200
-    print(r.json)
-
-    # r = client.get(url_for('list', basepath="lst"))
-    # assert r.status_code == 200
-    # print(r.json)
-
-
-
 def test_health(client: Any):
     r = client.get(url_for('health'))
     assert r.status_code == 200
     print(r.json)
 
-    # r = client.get(url_for('list', basepath="lst"))
-    # assert r.status_code == 200
-    # print(r.json)
+
+def test_list(client: Any):
+    r = client.get(url_for('list', basepath="pnfs/cta.cscs.ch/lst"))
+    assert r.status_code == 200
+    print(r.json)
+
+
+def test_fetch(client: Any):
+    r = client.get(url_for('fetch', subpath="pnfs/cta.cscs.ch/lst/md5sum-lst.txt"))
+    assert r.status_code == 200
+    print(r.json)
