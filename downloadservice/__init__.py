@@ -122,7 +122,15 @@ def get_session():
 
 @app.route(url_prefix + "/health")
 def health():    
-    return f"Welcome to the health page"
+    url = app.config['CTADS_UPSTREAM_ROOT'] + "pnfs/cta.cscs.ch/lst"
+
+    session = get_session()
+    r = session.request('PROPFIND', url, headers={'Depth': '1'})
+
+    if r.status_code == 200:
+        return f"OK", 200
+    else:
+        return f"Unhealthy!", 500
 
     
 
@@ -134,7 +142,7 @@ def health():
 def list(user, basepath):
     host = request.headers['Host']
     
-    baseurl = request.args.get("url", default="https://dcache.cta.cscs.ch:2880/" + (basepath or ""))
+    baseurl = request.args.get("url", default=app.config['CTADS_UPSTREAM_ROOT'] + (basepath or ""))
     # TODO: here do a permission check; in the future, the check will be done with rucio maybe
 
     session = get_session()

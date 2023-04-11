@@ -28,3 +28,14 @@ def test_list(client: Any):
     # r = client.get(url_for('list', basepath="lst"))
     # assert r.status_code == 200
     # print(r.json)
+
+
+
+def test_health(client: Any):
+    r = client.get(url_for('health'))
+    assert r.status_code == 200
+    print(r.json)
+
+    # r = client.get(url_for('list', basepath="lst"))
+    # assert r.status_code == 200
+    # print(r.json)
