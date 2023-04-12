@@ -36,3 +36,14 @@ def test_fetch(client: Any):
     r = client.get(url_for('fetch', subpath="pnfs/cta.cscs.ch/lst/md5sum-lst.txt"))
     assert r.status_code == 200
     print(r.json)
+
+
+def test_apiclient_list(start_service):
+    import ctadata
+
+    print("start_service", start_service)
+
+    ctadata.default_downloadservice = start_service['url']
+    
+    r = ctadata.list_dir("")
+    print(r)

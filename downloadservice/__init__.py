@@ -49,7 +49,7 @@ def create_app():
     app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
     app.config['CTADS_CABUNDLE'] = os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
     app.config['CTADS_CLIENTCERT'] = os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
-    app.config['CTADS_DISABLE_ALL_AUTH'] = False
+    app.config['CTADS_DISABLE_ALL_AUTH'] = os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
     app.config['CTADS_UPSTREAM_ROOT'] = "https://dcache.cta.cscs.ch:2880/"    
 
     return app
@@ -253,3 +253,6 @@ def oauth_callback():
 def main():
     app.run(host='0.0.0.0', port=5000)
     
+
+if __name__ == "__main__":
+    main()
