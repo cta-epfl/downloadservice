@@ -1,6 +1,6 @@
 import logging
 
-from .app import app
+from downloadservice.app import app
 
 def main():
     logging.basicConfig(level=logging.DEBUG)

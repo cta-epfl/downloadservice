@@ -16,7 +16,12 @@ from flask import redirect, request
 # from flask_oidc import OpenIDConnect
 
 import logging
-from ctadata.util import urljoin_multipart
+
+
+
+def urljoin_multipart(*args):
+    """Join multiple parts of a URL together, ignoring empty parts."""
+    return "/".join([arg.strip("/") for arg in args if arg is not None and arg.strip("/") != ""])
 
 
 logger = logging.getLogger(__name__)
@@ -103,12 +108,12 @@ def authenticated(f):
     return decorated
 
 
-@app.before_request
-def clear_trailing():
-    rp = request.path
-    if rp != '/' and rp.endswith('/'):
-        logger.warning("redirect %s", rp[:-1])
-        return redirect(rp[:-1])
+# @app.before_request
+# def clear_trailing():
+#     rp = request.path
+#     if rp != '/' and rp.endswith('/'):
+#         logger.warning("redirect %s", rp[:-1])
+#         return redirect(rp[:-1])
     
 
 @app.route(url_prefix + "/")
@@ -270,7 +275,7 @@ def upload(user, path):
 
     def generate(stats):
         while r := request.stream.read(chunk_size):
-            logger.info("read %s", len(r))
+            logger.info("read %s Mb total %s Mb", len(r)/1024**2, stats['total_written']/1024**2)
             stats['total_written'] += len(r)
             yield r
 
@@ -312,10 +317,3 @@ def oauth_callback():
     return response
 
 
-def main():
-    logging.basicConfig(level=logging.DEBUG)
-    app.run(host='0.0.0.0', port=5000)
-    
-
-if __name__ == "__main__":
-    main()
