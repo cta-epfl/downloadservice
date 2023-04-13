@@ -204,9 +204,10 @@ def list(user, path):
             if j.tag in keymap:
                 entry[keymap[j.tag]] = j.text
 
-        entry['url'] = "/".join([request.url, entry['href']])
+        up = urlparse(request.url)
         entry['href'] = re.sub('^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
-
+        entry['url'] = "/".join([up.scheme + ":/", up.netloc, re.sub(path, '', up.path), entry['href']])
+        
         if entry['href'].endswith('/'):
             entry['type'] = 'directory'
         else:
