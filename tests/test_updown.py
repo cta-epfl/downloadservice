@@ -1,6 +1,7 @@
 import subprocess
 from typing import Any
 import pytest
+import tempfile
 from flask import url_for
 
 
@@ -108,4 +109,16 @@ def test_apiclient_upload_wrong(start_service, caplog):
 
     with pytest.raises(ctadata.api.StorageException):       
         r = ctadata.upload_file('local-file-example', 'example-files/example-file/../')
+    
+
+def test_apiclient_upload_dir(start_service, caplog):
+    import ctadata
+
+    ctadata.APIClient.downloadservice = start_service['url']
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for i in range(10):
+            subprocess.check_call(["dd", "if=/dev/random", f"of={tmpdir}/local-file-example-{i}", "bs=1M", "count=1"])
+
+        r = ctadata.upload_dir(tmpdir, 'example-files/tmpdir')
     
