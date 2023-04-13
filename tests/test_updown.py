@@ -122,3 +122,15 @@ def test_apiclient_upload_dir(start_service, caplog):
 
         r = ctadata.upload_dir(tmpdir, 'example-files/tmpdir')
     
+
+@pytest.mark.xfail(reason="dav not implemented yet")
+def test_dav_list(start_service):    
+    from webdav4.client import Client
+
+    client = Client(start_service['url'] + "/dav/lst")
+    client.exists("bla")
+
+    client.ls("", detail=True)
+    client.upload_file("test")
+
+
