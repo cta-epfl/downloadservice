@@ -17,14 +17,14 @@ from flask import redirect, request
 
 import logging
 
+logger = logging.getLogger(__name__)
 
 
 def urljoin_multipart(*args):
     """Join multiple parts of a URL together, ignoring empty parts."""
+    logger.info("urljoin_multipart: %s", args)
     return "/".join([arg.strip("/") for arg in args if arg is not None and arg.strip("/") != ""])
 
-
-logger = logging.getLogger(__name__)
 
 try:
     import gfal2
@@ -243,6 +243,11 @@ def fetch(user, path):
     # TODO print useful logs for loki
 
 
+def user_to_path_fragment(user):
+    if isinstance(user, dict):
+        user = user['name']
+
+    return re.sub("[^0-1a-z]", "_", user.lower())
 
 
 @app.route(url_prefix + '/upload', methods=["POST"], defaults={'path': None})
@@ -250,7 +255,7 @@ def fetch(user, path):
 @authenticated
 def upload(user, path):
 
-    upload_base_path = urljoin_multipart("lst/users", user)
+    upload_base_path = urljoin_multipart("lst/users", user_to_path_fragment(user))
     upload_path = urljoin_multipart(upload_base_path, path)
 
     baseurl = urljoin_multipart(
