@@ -37,7 +37,7 @@ def start_service(pytestconfig):
 
     print(("pythonpath", env['PYTHONPATH']))
 
-    cmd = [ "python", "downloadservice/__init__.py"]
+    cmd = [ "python", "downloadservice/app.py"]
         
     print(f"\033[33mcommand: {cmd}\033[0m")
 
