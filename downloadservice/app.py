@@ -39,6 +39,8 @@ bp = Blueprint('downloadservice', __name__,
 
 url_prefix = os.getenv("JUPYTERHUB_SERVICE_PREFIX", "").rstrip("/")
 
+default_chunk_size = 10 * 1024 * 1024
+
 
 def create_app():
     app = Flask(__name__)
@@ -80,11 +82,14 @@ def authenticated(f):
             if token:
                 user = auth.user_for_token(token)
                 if user is not None:
-                    if user['name'] not in ['volodymyr.savchenko@epfl.ch', 'andrii.neronov@epfl.ch', 'pavlo.kashko@epfl.ch']:
+                    if user['name'] not in [
+                            'volodymyr.savchenko@epfl.ch',
+                            'andrii.neronov@epfl.ch',
+                            'pavlo.kashko@epfl.ch'
+                           ]:
                         user = None
             else:
                 user = None
-
 
             if user:
                 return f(user, *args, **kwargs)
@@ -211,8 +216,11 @@ def list(user, path):
 @app.route(url_prefix + '/fetch/<path:path>', methods=["GET", "POST"])
 @authenticated
 def fetch(user, path):
+    if '..' in path:
+        return "Error: path cannot contain '..'", 400
+
     url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'], app.config['CTADS_UPSTREAM_BASEPATH'], (path or ""))
-    chunk_size = request.args.get('chunk_size', 1024 * 1024, type=int)
+    chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
     logger.info("fetching upstream url %s", url)
 
@@ -232,24 +240,53 @@ def fetch(user, path):
 
 
 
-@app.route(url_prefix + '/upload', methods=["POST"], defaults={'subpath': None})
+@app.route(url_prefix + '/upload', methods=["POST"], defaults={'path': None})
+@app.route(url_prefix + '/upload/<path:path>', methods=["POST"])
 @authenticated
-def upload(user, subpath):
-    url = request.args.get("url", default=app.config['CTADS_UPSTREAM_ROOT'] + (subpath or ""))
+def upload(user, path):
+
+    upload_base_path = urljoin_multipart("lst/users", user)
+    upload_path = urljoin_multipart(upload_base_path, path)
+
+    baseurl = urljoin_multipart(
+        app.config['CTADS_UPSTREAM_ENDPOINT'],
+        app.config['CTADS_UPSTREAM_BASEPATH'],
+        upload_base_path
+    )
+
+    url = urljoin_multipart(baseurl, path)
+
+    chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
+
+    logger.info("uploading to path %s", path)
+    logger.info("uploading to base upstream url %s", baseurl)
+    logger.info("uploading to upstream url %s", url)
 
     upstream_session = get_upstream_session()
 
-    # TODO: first simple and safe mechanism would be to let users upload only to their own specialized directory with hashed name
-    
-    # headers = {} 
-    # def generate():
-    #     with upstream_session.get(url, stream=True) as f:
-    #         logger.debug("got response headers: %s", f.headers)
-    #         # headers['Content-Type'] = f.headers['content-type']
-    #         logger.info("opened %s", f)
-    #         for r in f.iter_content(chunk_size=1024*1024):
-    #             yield r
+    r = upstream_session.request('MKCOL', baseurl)
 
+    stats = dict(total_written=0)
+
+    def generate(stats):
+        while r := request.stream.read(chunk_size):
+            logger.info("read %s", len(r))
+            stats['total_written'] += len(r)
+            yield r
+
+    r = upstream_session.put(url, data=generate(stats))
+    # r = upstream_session.put(url, stream=True, data=request.stream)
+
+    logger.info("%s %s %s", url, r, r.text)
+
+    if r.status_code not in [200, 201]:
+        return f"Error: {r.status_code} {r.content.decode()}", r.status_code
+    else:        
+        return {"status": "uploaded", "path": upload_path, "total_written": stats['total_written']}
+        # return {"status": "uploaded", "size_Mb": total_written/1024/1024, "path": upload_path}
+    
+    # TODO: first simple and safe mechanism would be to let users upload only to their own specialized directory with hashed name
+   
     # return Response(stream_with_context(generate())), headers
     # TODO print useful logs for loki
 
@@ -276,6 +313,7 @@ def oauth_callback():
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG)
     app.run(host='0.0.0.0', port=5000)
     
 

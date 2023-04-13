@@ -1,3 +1,6 @@
 secrets.json
 __pycache__
 secret-env.sh
+example-file
+local-file-example
+restored-file-example
