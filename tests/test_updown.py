@@ -41,8 +41,6 @@ def test_fetch(client: Any):
 def test_apiclient_list(start_service):
     import ctadata
 
-    print("start_service", start_service)
-
     r = ctadata.list_dir("", downloadservice=start_service['url'])
 
     print(r)
@@ -66,4 +64,22 @@ def test_apiclient_list(start_service):
             n_file +=1
 
         if n_dir > 2 and n_file > 3:
+            break
+
+
+def test_apiclient_fetch(start_service, caplog):
+    import ctadata
+
+    ctadata.APIClient.downloadservice = start_service['url']
+        
+    r = ctadata.list_dir("lst")
+
+    for entry in r:
+        print(entry)
+        if entry['type'] == 'file' and int(entry['size']) > 10000:
+            ctadata.fetch_and_save_file(entry['href'], chunk_size=1024*1024*10)
+            assert 'in 4 chunks' in caplog.text
+            assert 'in 9 chunks' not in caplog.text
+            ctadata.fetch_and_save_file(entry['href'], chunk_size=1024*1024*5)
+            assert 'in 9 chunks' in caplog.text
             break
