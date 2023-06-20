@@ -4,7 +4,6 @@ import io
 import re
 from urllib.parse import urlparse
 import requests
-
 import secrets
 import xml.etree.ElementTree as ET
 
