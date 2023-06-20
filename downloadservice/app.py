@@ -102,7 +102,8 @@ def authenticated(f):
                 # redirect to login url on failed auth
                 state = auth.generate_state(next_url=request.path)
                 response = make_response(
-                    redirect(auth.login_url + '&state=%s' % state))
+                    redirect(auth.login_url + '&state=%s' % state)
+                )
                 response.set_cookie(auth.state_cookie_name, state)
                 return response
 
@@ -144,8 +145,8 @@ def health():
     upstream_session = get_upstream_session()
 
     try:
-        r = upstream_session.request('PROPFIND', url, headers={
-                                     'Depth': '1'}, timeout=5)
+        r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
+                                     timeout=5)
         if r.status_code in [200, 207]:
             return f"OK", 200
         else:
@@ -193,8 +194,11 @@ def list(user, path):
 
     entries = []
 
-    keymap = dict([('{DAV:}href', 'href'), ('{DAV:}getcontentlength',
-                  'size'), ('{DAV:}getlastmodified', 'mtime')])
+    keymap = dict([
+        ('{DAV:}href', 'href'),
+        ('{DAV:}getcontentlength', 'size'),
+        ('{DAV:}getlastmodified', 'mtime')
+    ])
 
     for i in root.iter('{DAV:}response'):
         logger.debug("i: %s", i)
@@ -210,8 +214,10 @@ def list(user, path):
         up = urlparse(request.url)
         entry['href'] = re.sub(
             '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
-        entry['url'] = "/".join([up.scheme + ":/", up.netloc,
-                                re.sub(path, '', up.path), entry['href']])
+        entry['url'] = "/".join([
+            up.scheme + ":/", up.netloc,
+            re.sub(path, '', up.path), entry['href']
+        ])
 
         if entry['href'].endswith('/'):
             entry['type'] = 'directory'
@@ -229,8 +235,8 @@ def fetch(user, path):
     if '..' in path:
         return "Error: path cannot contain '..'", 400
 
-    url = urljoin_multipart(
-        app.config['CTADS_UPSTREAM_ENDPOINT'], app.config['CTADS_UPSTREAM_BASEPATH'], (path or ""))
+    url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'],
+                            app.config['CTADS_UPSTREAM_BASEPATH'], (path or ""))
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
     logger.info("fetching upstream url %s", url)
@@ -287,8 +293,8 @@ def upload(user, path):
 
     def generate(stats):
         while r := request.stream.read(chunk_size):
-            logger.info("read %s Mb total %s Mb", len(
-                r)/1024**2, stats['total_written']/1024**2)
+            logger.info("read %s Mb total %s Mb",
+                        len(r)/1024**2, stats['total_written']/1024**2)
             stats['total_written'] += len(r)
             yield r
 
