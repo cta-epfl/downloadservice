@@ -2,11 +2,8 @@ from functools import wraps
 import os
 import io
 import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 import requests
-from pathlib import Path
-
-from bs4 import BeautifulSoup
 import secrets
 import xml.etree.ElementTree as ET
 
@@ -34,13 +31,14 @@ except ImportError:
 
 try:
     from jupyterhub.services.auth import HubOAuth
-    auth = HubOAuth(api_token=os.environ['JUPYTERHUB_API_TOKEN'], cache_max_age=60)
+    auth = HubOAuth(
+        api_token=os.environ['JUPYTERHUB_API_TOKEN'], cache_max_age=60)
 except Exception as e:
     auth = None
 
 
 bp = Blueprint('downloadservice', __name__,
-                template_folder='templates')
+               template_folder='templates')
 
 url_prefix = os.getenv("JUPYTERHUB_SERVICE_PREFIX", "").rstrip("/")
 
@@ -50,17 +48,20 @@ default_chunk_size = 10 * 1024 * 1024
 def create_app():
     app = Flask(__name__)
 
-
-    app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', secrets.token_bytes(32))
+    app.config['SECRET_KEY'] = os.environ.get(
+        'FLASK_SECRET', secrets.token_bytes(32))
     app.secret_key = app.config['SECRET_KEY']
 
     app.config['OIDC_CLIENT_SECRETS'] = 'secrets.json'
     app.config['OIDC_COOKIE_SECURE'] = False
     app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
     app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
-    app.config['CTADS_CABUNDLE'] = os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
-    app.config['CTADS_CLIENTCERT'] = os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
-    app.config['CTADS_DISABLE_ALL_AUTH'] = os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
+    app.config['CTADS_CABUNDLE'] = os.environ.get(
+        'CTADS_CABUNDLE', '/etc/cabundle.pem')
+    app.config['CTADS_CLIENTCERT'] = os.environ.get(
+        'CTADS_CLIENTCERT', '/tmp/x509up_u1000')
+    app.config['CTADS_DISABLE_ALL_AUTH'] = os.getenv(
+        'CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
     app.config['CTADS_UPSTREAM_ENDPOINT'] = "https://dcache.cta.cscs.ch:2880/"
     app.config['CTADS_UPSTREAM_BASEPATH'] = "pnfs/cta.cscs.ch/"
 
@@ -72,7 +73,6 @@ app = create_app()
 
 def authenticated(f):
     # TODO: here do a permission check; in the future, the check will be done with rucio maybe
-
     """Decorator for authenticating with the Hub via OAuth"""
 
     print("authenticated check:", app.config)
@@ -88,10 +88,10 @@ def authenticated(f):
                 user = auth.user_for_token(token)
                 if user is not None:
                     if user['name'] not in [
-                            'volodymyr.savchenko@epfl.ch',
-                            'andrii.neronov@epfl.ch',
-                            'pavlo.kashko@epfl.ch'
-                           ]:
+                        'volodymyr.savchenko@epfl.ch',
+                        'andrii.neronov@epfl.ch',
+                        'pavlo.kashko@epfl.ch'
+                    ]:
                         user = None
             else:
                 user = None
@@ -101,7 +101,9 @@ def authenticated(f):
             else:
                 # redirect to login url on failed auth
                 state = auth.generate_state(next_url=request.path)
-                response = make_response(redirect(auth.login_url + '&state=%s' % state))
+                response = make_response(
+                    redirect(auth.login_url + '&state=%s' % state)
+                )
                 response.set_cookie(auth.state_cookie_name, state)
                 return response
 
@@ -114,7 +116,7 @@ def authenticated(f):
 #     if rp != '/' and rp.endswith('/'):
 #         logger.warning("redirect %s", rp[:-1])
 #         return redirect(rp[:-1])
-    
+
 
 @app.route(url_prefix + "/")
 def login():
@@ -126,7 +128,6 @@ def login():
         user = None
 
     return f"Welcome {user} access token {token}"
-
 
 
 def get_upstream_session():
@@ -144,7 +145,8 @@ def health():
     upstream_session = get_upstream_session()
 
     try:
-        r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'}, timeout=5)
+        r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
+                                     timeout=5)
         if r.status_code in [200, 207]:
             return f"OK", 200
         else:
@@ -163,23 +165,24 @@ def health():
 @authenticated
 def list(user, path):
     host = request.headers['Host']
-    
+
     upstream_url = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
         app.config['CTADS_UPSTREAM_BASEPATH'],
         (path or "")
     )
-    
+
     upstream_session = get_upstream_session()
 
-    r = upstream_session.request('PROPFIND', upstream_url, headers={'Depth': '1'})
+    r = upstream_session.request(
+        'PROPFIND', upstream_url, headers={'Depth': '1'})
 
     if r.status_code not in [200, 207]:
         return f"Error: {r.status_code} {r.content.decode()}", r.status_code
 
     logger.debug("request headers: %s", r.request.headers)
     logger.debug("response: %s", r.content.decode())
-            
+
     try:
         tree = ET.parse(io.BytesIO(r.content))
         root = tree.getroot()
@@ -191,28 +194,35 @@ def list(user, path):
 
     entries = []
 
-    keymap = dict([('{DAV:}href', 'href'), ('{DAV:}getcontentlength', 'size'), ('{DAV:}getlastmodified', 'mtime')])
+    keymap = dict([
+        ('{DAV:}href', 'href'),
+        ('{DAV:}getcontentlength', 'size'),
+        ('{DAV:}getlastmodified', 'mtime')
+    ])
 
     for i in root.iter('{DAV:}response'):
         logger.debug("i: %s", i)
 
         entry = {}
         entries.append(entry)
-        
+
         for j in i.iter():
             logger.debug("> j: %s %s", j.tag, j.text)
             if j.tag in keymap:
                 entry[keymap[j.tag]] = j.text
 
         up = urlparse(request.url)
-        entry['href'] = re.sub('^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
-        entry['url'] = "/".join([up.scheme + ":/", up.netloc, re.sub(path, '', up.path), entry['href']])
-        
+        entry['href'] = re.sub(
+            '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
+        entry['url'] = "/".join([
+            up.scheme + ":/", up.netloc,
+            re.sub(path, '', up.path), entry['href']
+        ])
+
         if entry['href'].endswith('/'):
             entry['type'] = 'directory'
         else:
             entry['type'] = 'file'
-        
 
     return jsonify(entries)
     # TODO print useful logs for loki
@@ -225,13 +235,14 @@ def fetch(user, path):
     if '..' in path:
         return "Error: path cannot contain '..'", 400
 
-    url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'], app.config['CTADS_UPSTREAM_BASEPATH'], (path or ""))
+    url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'],
+                            app.config['CTADS_UPSTREAM_BASEPATH'], (path or ""))
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
     logger.info("fetching upstream url %s", url)
 
     upstream_session = get_upstream_session()
-        
+
     def generate():
         with upstream_session.get(url, stream=True) as f:
             logger.debug("got response headers: %s", f.headers)
@@ -256,7 +267,8 @@ def user_to_path_fragment(user):
 @authenticated
 def upload(user, path):
 
-    upload_base_path = urljoin_multipart("lst/users", user_to_path_fragment(user))
+    upload_base_path = urljoin_multipart(
+        "lst/users", user_to_path_fragment(user))
     upload_path = urljoin_multipart(upload_base_path, path)
 
     baseurl = urljoin_multipart(
@@ -281,7 +293,8 @@ def upload(user, path):
 
     def generate(stats):
         while r := request.stream.read(chunk_size):
-            logger.info("read %s Mb total %s Mb", len(r)/1024**2, stats['total_written']/1024**2)
+            logger.info("read %s Mb total %s Mb",
+                        len(r)/1024**2, stats['total_written']/1024**2)
             stats['total_written'] += len(r)
             yield r
 
@@ -292,12 +305,12 @@ def upload(user, path):
 
     if r.status_code not in [200, 201]:
         return f"Error: {r.status_code} {r.content.decode()}", r.status_code
-    else:        
+    else:
         return {"status": "uploaded", "path": upload_path, "total_written": stats['total_written']}
         # return {"status": "uploaded", "size_Mb": total_written/1024/1024, "path": upload_path}
-    
+
     # TODO: first simple and safe mechanism would be to let users upload only to their own specialized directory with hashed name
-   
+
     # return Response(stream_with_context(generate())), headers
     # TODO print useful logs for loki
 
@@ -321,5 +334,3 @@ def oauth_callback():
     next_url = auth.get_next_url(cookie_state) or url_prefix
     response = make_response(redirect(next_url))
     return response
-
-

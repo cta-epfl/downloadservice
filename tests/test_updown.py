@@ -14,6 +14,7 @@ def app():
         "CTADS_DISABLE_ALL_AUTH": True,
         "DEBUG": True,
         "CTADS_CABUNDLE": "cabundle.pem",
+        "SERVER_NAME": 'app'
     })
 
     print("config now:", app.config)
@@ -50,19 +51,19 @@ def test_apiclient_list(start_service):
 
     with pytest.raises(ctadata.api.StorageException):
         ctadata.list_dir("blablabalfake")
-        
+
     r = ctadata.list_dir("lst")
 
     n_dir = 0
     n_file = 0
-    
+
     for entry in r:
         print(entry)
         if entry['type'] == 'directory':
             n_dir += 1
             print(ctadata.list_dir(entry['href']))
         else:
-            n_file +=1
+            n_file += 1
 
         if n_dir > 2 and n_file > 3:
             break
@@ -72,7 +73,7 @@ def test_apiclient_fetch(start_service, caplog):
     import ctadata
 
     ctadata.APIClient.downloadservice = start_service['url']
-        
+
     r = ctadata.list_dir("lst")
 
     for entry in r:
@@ -86,14 +87,14 @@ def test_apiclient_fetch(start_service, caplog):
             break
 
 
-
 def test_apiclient_upload(start_service, caplog):
     import ctadata
 
     ctadata.APIClient.downloadservice = start_service['url']
 
-    subprocess.check_call(["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1000"])
-        
+    subprocess.check_call(
+        ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1000"])
+
     r = ctadata.upload_file('local-file-example', 'example-files/example-file')
     print(r)
 
@@ -105,11 +106,13 @@ def test_apiclient_upload_wrong(start_service, caplog):
 
     ctadata.APIClient.downloadservice = start_service['url']
 
-    subprocess.check_call(["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1"])
+    subprocess.check_call(
+        ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1"])
 
-    with pytest.raises(ctadata.api.StorageException):       
-        r = ctadata.upload_file('local-file-example', 'example-files/example-file/../')
-    
+    with pytest.raises(ctadata.api.StorageException):
+        r = ctadata.upload_file('local-file-example',
+                                'example-files/example-file/../')
+
 
 def test_apiclient_upload_dir(start_service, caplog):
     import ctadata
@@ -118,13 +121,14 @@ def test_apiclient_upload_dir(start_service, caplog):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         for i in range(10):
-            subprocess.check_call(["dd", "if=/dev/random", f"of={tmpdir}/local-file-example-{i}", "bs=1M", "count=1"])
+            subprocess.check_call(
+                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example-{i}", "bs=1M", "count=1"])
 
         r = ctadata.upload_dir(tmpdir, 'example-files/tmpdir')
-    
+
 
 @pytest.mark.xfail(reason="dav not implemented yet")
-def test_dav_list(start_service):    
+def test_dav_list(start_service):
     from webdav4.client import Client
 
     client = Client(start_service['url'] + "/dav/lst")
@@ -132,5 +136,3 @@ def test_dav_list(start_service):
 
     client.ls("", detail=True)
     client.upload_file("test")
-
-

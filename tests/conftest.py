@@ -20,25 +20,26 @@ def kill_child_processes(parent_pid, sig=signal.SIGINT):
     except psutil.NoSuchProcess:
         return
 
+
 @pytest.fixture
 def start_service(pytestconfig):
 
     rootdir = pytestconfig.rootdir
-    
+
     env = copy.deepcopy(dict(os.environ))
     print(("rootdir", str(rootdir)))
     env['PYTHONPATH'] = str(rootdir) + ":" + str(rootdir) + "/tests:" + \
-                        str(rootdir) + '/bin:' + \
-                        __this_dir__ + ":" + os.path.join(__this_dir__, "../bin:") + \
-                        env.get('PYTHONPATH', "")
+        str(rootdir) + '/bin:' + \
+        __this_dir__ + ":" + os.path.join(__this_dir__, "../bin:") + \
+        env.get('PYTHONPATH', "")
 
     env['CTADS_DISABLE_ALL_AUTH'] = 'True'
     env['CTADS_CABUNDLE'] = "cabundle.pem"
 
     print(("pythonpath", env['PYTHONPATH']))
 
-    cmd = [ "python", "downloadservice/cli.py"]
-        
+    cmd = ["python", "downloadservice/cli.py"]
+
     print(f"\033[33mcommand: {cmd}\033[0m")
 
     p = subprocess.Popen(
@@ -62,10 +63,11 @@ def start_service(pytestconfig):
             else:
                 C = '\033[34m'
 
-            print(f"{C}following server: {line.rstrip()}{NC}" )
+            print(f"{C}following server: {line.rstrip()}{NC}")
             m = re.search(r"Running on (.*?:5000)", line)
             if m:
-                url_store[0] = m.group(1).strip()  # alternatively get from configenv
+                # alternatively get from configenv
+                url_store[0] = m.group(1).strip()
                 print(f"{C}following server: found url:{url_store[0]}")
 
             if re.search("\* Debugger PIN:.*?", line):
@@ -77,7 +79,8 @@ def start_service(pytestconfig):
 
     started_waiting = time.time()
     while url_store[0] is None:
-        print("waiting for server to start since", time.time() - started_waiting)
+        print("waiting for server to start since",
+              time.time() - started_waiting)
         time.sleep(0.2)
     time.sleep(0.5)
 
