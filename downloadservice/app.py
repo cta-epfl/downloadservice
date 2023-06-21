@@ -267,6 +267,7 @@ def user_to_path_fragment(user):
 @authenticated
 def upload(user, path):
 
+    # TODO: Not secure for production
     if '..' in path:
         return "Error: path cannot contain '..'", 400
 
