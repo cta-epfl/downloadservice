@@ -101,6 +101,17 @@ def test_apiclient_upload(start_service, caplog):
     ctadata.fetch_and_save_file(r['path'], 'restored-file-example')
 
 
+def test_apiclient_upload_invalid_path(start_service, caplog):
+    import ctadata
+
+    ctadata.APIClient.downloadservice = start_service['url']
+
+    subprocess.check_call(
+        ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1"])
+
+    with pytest.raises(ctadata.api.StorageException):
+        r = ctadata.upload_file('local-file-example', '../example-file')
+
 def test_apiclient_upload_wrong(start_service, caplog):
     import ctadata
 
