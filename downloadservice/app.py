@@ -267,6 +267,9 @@ def user_to_path_fragment(user):
 @authenticated
 def upload(user, path):
 
+    if '..' in path:
+        return "Error: path cannot contain '..'", 400
+
     upload_base_path = urljoin_multipart(
         "lst/users", user_to_path_fragment(user))
     upload_path = urljoin_multipart(upload_base_path, path)
@@ -278,9 +281,6 @@ def upload(user, path):
     )
 
     url = urljoin_multipart(baseurl, path)
-    # Validate directory
-    if os.path.commonprefix([os.path.realpath(url), baseurl]) != baseurl:
-        return f"Error: 403 invalid path", 403
 
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
