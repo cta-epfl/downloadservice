@@ -8,9 +8,9 @@ authors = ["Volodymyr Savchenko <contact@volodymyrsavchenko.com>"]
 python = "^3.9"
 flask-oidc2 = "^1.5.0"
 flask-oidc = "^1.4.0"
+requests = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
-requests = "^2.31.0"
 pytest = "^7.3.2"
 psutil = "^5.9.5"
 
