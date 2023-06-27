@@ -8,7 +8,7 @@ import secrets
 import xml.etree.ElementTree as ET
 
 from flask import Blueprint, Flask, Response, jsonify, make_response, redirect, request, session, stream_with_context, url_for
-from flask import redirect, request
+from flask import redirect, request, render_template
 
 # from flask_oidc import OpenIDConnect
 
@@ -28,14 +28,12 @@ try:
 except ImportError:
     gfal2 = None
 
-
 try:
     from jupyterhub.services.auth import HubOAuth
     auth = HubOAuth(
         api_token=os.environ['JUPYTERHUB_API_TOKEN'], cache_max_age=60)
 except Exception as e:
     auth = None
-
 
 bp = Blueprint('downloadservice', __name__,
                template_folder='templates')
@@ -86,13 +84,8 @@ def authenticated(f):
 
             if token:
                 user = auth.user_for_token(token)
-                if user is not None:
-                    if user['name'] not in [
-                        'volodymyr.savchenko@epfl.ch',
-                        'andrii.neronov@epfl.ch',
-                        'pavlo.kashko@epfl.ch'
-                    ]:
-                        user = None
+                if not auth.check_scopes('access:services!service=downloadservice', user):
+                    user = None
             else:
                 user = None
 
@@ -117,17 +110,21 @@ def authenticated(f):
 #         logger.warning("redirect %s", rp[:-1])
 #         return redirect(rp[:-1])
 
+# @app.route(url_prefix + "/")
+# def home(user):
+#     token = session.get("token") or request.args.get('token')
+#     if token:
+#         user = auth.user_for_token(token)
+#     else:
+#         user = None
+
+#     return render_template('index.html', user=user, token=token)
 
 @app.route(url_prefix + "/")
-def login():
+@authenticated
+def login(user):
     token = session.get("token") or request.args.get('token')
-
-    if token:
-        user = auth.user_for_token(token)
-    else:
-        user = None
-
-    return f"Welcome {user} access token {token}"
+    return render_template('index.html', user=user, token=token)
 
 
 def get_upstream_session():
