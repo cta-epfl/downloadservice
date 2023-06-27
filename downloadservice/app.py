@@ -114,16 +114,6 @@ def authenticated(f):
 #         logger.warning("redirect %s", rp[:-1])
 #         return redirect(rp[:-1])
 
-# @app.route(url_prefix + "/")
-# def home(user):
-#     token = session.get("token") or request.args.get('token')
-#     if token:
-#         user = auth.user_for_token(token)
-#     else:
-#         user = None
-
-#     return render_template('index.html', user=user, token=token)
-
 @app.route(url_prefix + "/")
 @authenticated
 def login(user):
