@@ -114,6 +114,7 @@ def authenticated(f):
 #         logger.warning("redirect %s", rp[:-1])
 #         return redirect(rp[:-1])
 
+
 @app.route(url_prefix + "/")
 @authenticated
 def login(user):
