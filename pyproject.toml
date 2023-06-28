@@ -10,7 +10,10 @@ flask-oidc2 = "^1.5.0"
 flask-oidc = "^1.4.0"
 requests = "^2.31.0"
 
-[tool.poetry.group.optional.dependencies]
+[tool.poetry.group.jupyterhub]
+optional = true
+
+[tool.poetry.group.jupyterhub.dependencies]
 jupyterhub = "^4.0.1"
 
 [tool.poetry.group.dev.dependencies]
