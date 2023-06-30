@@ -6,10 +6,10 @@ Backend server for [https://github.com/cta-epfl/ctadata](https://github.com/cta-
 
 For `production` use to install dependencies just run :
 ```
-poetry install --without dev --with jupyterhub
+poetry install --with jupyterhub
 ```
 
 For `test` purpose without jupyterhub :
 ```
-poetry install
+poetry install --with dev
 ```
