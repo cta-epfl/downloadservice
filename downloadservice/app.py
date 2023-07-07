@@ -7,8 +7,10 @@ import requests
 import secrets
 import xml.etree.ElementTree as ET
 
-from flask import Blueprint, Flask, Response, jsonify, make_response, redirect
-from flask import request, session, stream_with_context, render_template
+from flask import (
+    Blueprint, Flask, Response, jsonify, make_response, redirect, request,
+    session, stream_with_context, render_template
+)
 
 # from flask_oidc import OpenIDConnect
 
@@ -74,8 +76,8 @@ app = create_app()
 
 
 def authenticated(f):
-    # TODO: here do a permission check; in the future, the check will be done
-    # with rucio maybe
+    # TODO: here do a permission check;
+    # in the future, the check will be done with rucio maybe
     """Decorator for authenticating with the Hub via OAuth"""
 
     print("authenticated check:", app.config)
@@ -316,11 +318,6 @@ def upload(user, path):
             "path": upload_path,
             "total_written": stats['total_written']
         }
-        # return {
-        #     "status": "uploaded",
-        #     "size_Mb": total_written/1024/1024,
-        #     "path": upload_path
-        # }
 
     # TODO: first simple and safe mechanism would be to let users upload only
     # to their own specialized directory with hashed name
