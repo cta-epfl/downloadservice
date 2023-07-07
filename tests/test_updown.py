@@ -4,8 +4,6 @@ import pytest
 import tempfile
 from flask import url_for
 
-import ctadata
-
 
 @pytest.fixture(scope="session")
 def app():
@@ -43,6 +41,7 @@ def test_fetch(client: Any):
 
 
 def test_apiclient_list(start_service):
+    import ctadata
     r = ctadata.list_dir("", downloadservice=start_service['url'])
 
     print(r)
@@ -70,6 +69,7 @@ def test_apiclient_list(start_service):
 
 
 def test_apiclient_fetch(start_service, caplog):
+    import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
 
     r = ctadata.list_dir("lst")
@@ -86,6 +86,7 @@ def test_apiclient_fetch(start_service, caplog):
 
 
 def test_apiclient_upload(start_service, caplog):
+    import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
 
     subprocess.check_call([
@@ -99,6 +100,7 @@ def test_apiclient_upload(start_service, caplog):
 
 
 def test_apiclient_upload_invalid_path(start_service, caplog):
+    import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
 
     subprocess.check_call(
@@ -109,6 +111,7 @@ def test_apiclient_upload_invalid_path(start_service, caplog):
 
 
 def test_apiclient_upload_wrong(start_service, caplog):
+    import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
 
     subprocess.check_call(
@@ -120,6 +123,7 @@ def test_apiclient_upload_wrong(start_service, caplog):
 
 
 def test_apiclient_upload_dir(start_service, caplog):
+    import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
 
     with tempfile.TemporaryDirectory() as tmpdir:
