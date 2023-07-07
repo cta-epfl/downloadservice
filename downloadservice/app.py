@@ -32,7 +32,8 @@ try:
     from jupyterhub.services.auth import HubOAuth
     auth = HubOAuth(
         api_token=os.environ['JUPYTERHUB_API_TOKEN'], cache_max_age=60)
-except Exception as e:
+except Exception:
+    logger.warning("Auth system not configured")
     auth = None
 
 bp = Blueprint('downloadservice', __name__,
@@ -80,6 +81,11 @@ def authenticated(f):
         if app.config['CTADS_DISABLE_ALL_AUTH']:
             return f("anonymous", *args, **kwargs)
         else:
+            if auth is None:
+                return "Unable to use jupyterhub to verify access to this\
+                    service. At this time, the downloadservice uses jupyterhub\
+                    to control access to protected resources", 500
+
             token = session.get("token") or request.args.get('token')
 
             if token:
