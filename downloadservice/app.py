@@ -81,6 +81,9 @@ def authenticated(f):
         if app.config['CTADS_DISABLE_ALL_AUTH']:
             return f("anonymous", *args, **kwargs)
         else:
+            if auth is None:
+                return "Error: Auth system not configured correctly", 500
+
             token = session.get("token") or request.args.get('token')
 
             if token:
