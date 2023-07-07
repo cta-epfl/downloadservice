@@ -32,8 +32,8 @@ try:
     from jupyterhub.services.auth import HubOAuth
     auth = HubOAuth(
         api_token=os.environ['JUPYTERHUB_API_TOKEN'], cache_max_age=60)
-except Exception as e:
-    # TODO: Put some warning/error
+except Exception:
+    logger.warning("Auth system not configured")
     auth = None
 
 bp = Blueprint('downloadservice', __name__,
