@@ -82,7 +82,9 @@ def authenticated(f):
             return f("anonymous", *args, **kwargs)
         else:
             if auth is None:
-                return "Error: Auth system not configured correctly", 500
+                return "Unable to use jupyterhub to verify access to this\
+                    service. At this time, the downloadservice uses jupyterhub\
+                    to control access to protected resources", 500
 
             token = session.get("token") or request.args.get('token')
 
