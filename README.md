@@ -4,7 +4,7 @@ Backend server for [https://github.com/cta-epfl/ctadata](https://github.com/cta-
 
 ## Installation
 
-For `production` use to install dependencies just run :
+For use as a JupyterHub service, run:
 ```
 poetry install
 ```
