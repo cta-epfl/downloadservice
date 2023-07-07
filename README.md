@@ -9,7 +9,7 @@ For `production` use to install dependencies just run :
 poetry install
 ```
 
-For `test` purpose without jupyterhub :
+For standalone service without JupyterHub :
 ```
 poetry install --with dev --without jupyterhub
 ```
