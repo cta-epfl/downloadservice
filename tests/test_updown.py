@@ -42,7 +42,6 @@ def test_fetch(client: Any):
 
 def test_apiclient_list(start_service):
     import ctadata
-
     r = ctadata.list_dir("", downloadservice=start_service['url'])
 
     print(r)
@@ -71,7 +70,6 @@ def test_apiclient_list(start_service):
 
 def test_apiclient_fetch(start_service, caplog):
     import ctadata
-
     ctadata.APIClient.downloadservice = start_service['url']
 
     r = ctadata.list_dir("lst")
@@ -89,11 +87,11 @@ def test_apiclient_fetch(start_service, caplog):
 
 def test_apiclient_upload(start_service, caplog):
     import ctadata
-
     ctadata.APIClient.downloadservice = start_service['url']
 
-    subprocess.check_call(
-        ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1000"])
+    subprocess.check_call([
+        "dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1000"
+    ])
 
     r = ctadata.upload_file('local-file-example', 'example-files/example-file')
     print(r)
@@ -103,39 +101,39 @@ def test_apiclient_upload(start_service, caplog):
 
 def test_apiclient_upload_invalid_path(start_service, caplog):
     import ctadata
-
     ctadata.APIClient.downloadservice = start_service['url']
 
     subprocess.check_call(
         ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1"])
 
     with pytest.raises(ctadata.api.StorageException):
-        r = ctadata.upload_file('local-file-example', '../example-file')
+        ctadata.upload_file('local-file-example', '../example-file')
+
 
 def test_apiclient_upload_wrong(start_service, caplog):
     import ctadata
-
     ctadata.APIClient.downloadservice = start_service['url']
 
     subprocess.check_call(
         ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1"])
 
     with pytest.raises(ctadata.api.StorageException):
-        r = ctadata.upload_file('local-file-example',
-                                'example-files/example-file/../')
+        ctadata.upload_file('local-file-example',
+                            'example-files/example-file/../')
 
 
 def test_apiclient_upload_dir(start_service, caplog):
     import ctadata
-
     ctadata.APIClient.downloadservice = start_service['url']
 
     with tempfile.TemporaryDirectory() as tmpdir:
         for i in range(10):
-            subprocess.check_call(
-                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example-{i}", "bs=1M", "count=1"])
+            subprocess.check_call([
+                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example-{i}",
+                "bs=1M", "count=1"
+            ])
 
-        r = ctadata.upload_dir(tmpdir, 'example-files/tmpdir')
+        ctadata.upload_dir(tmpdir, 'example-files/tmpdir')
 
 
 @pytest.mark.xfail(reason="dav not implemented yet")

@@ -7,8 +7,10 @@ import requests
 import secrets
 import xml.etree.ElementTree as ET
 
-from flask import Blueprint, Flask, Response, jsonify, make_response, redirect, request, session, stream_with_context, url_for
-from flask import redirect, request, render_template
+from flask import (
+    Blueprint, Flask, Response, jsonify, make_response, redirect, request,
+    session, stream_with_context, render_template
+)
 
 # from flask_oidc import OpenIDConnect
 
@@ -20,7 +22,10 @@ logger = logging.getLogger(__name__)
 def urljoin_multipart(*args):
     """Join multiple parts of a URL together, ignoring empty parts."""
     logger.info("urljoin_multipart: %s", args)
-    return "/".join([arg.strip("/") for arg in args if arg is not None and arg.strip("/") != ""])
+    return "/".join(
+        [arg.strip("/")
+         for arg in args if arg is not None and arg.strip("/") != ""]
+    )
 
 
 try:
@@ -71,7 +76,8 @@ app = create_app()
 
 
 def authenticated(f):
-    # TODO: here do a permission check; in the future, the check will be done with rucio maybe
+    # TODO: here do a permission check;
+    # in the future, the check will be done with rucio maybe
     """Decorator for authenticating with the Hub via OAuth"""
 
     print("authenticated check:", app.config)
@@ -90,7 +96,8 @@ def authenticated(f):
 
             if token:
                 user = auth.user_for_token(token)
-                if not auth.check_scopes('access:services!service=downloadservice', user):
+                if not auth.check_scopes(
+                        'access:services!service=downloadservice', user):
                     user = None
             else:
                 user = None
@@ -141,23 +148,24 @@ def health():
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
                                      timeout=5)
         if r.status_code in [200, 207]:
-            return f"OK", 200
+            return "OK", 200
         else:
             logger.error("service is unhealthy: %s", r.content.decode())
-            return f"Unhealthy!", 500
+            return "Unhealthy!", 500
     except requests.exceptions.ReadTimeout as e:
         logger.error("service is unhealthy: %s", e)
-        return f"Unhealthy!", 500
+        return "Unhealthy!", 500
 
 
 # @oidc.require_login
 # @oidc.accept_token(require_token=True)
 
-@app.route(url_prefix + '/list', methods=["GET", "POST"], defaults={'path': None})
+@app.route(url_prefix + '/list', methods=["GET", "POST"],
+           defaults={'path': None})
 @app.route(url_prefix + '/list/<path:path>', methods=["GET", "POST"])
 @authenticated
 def list(user, path):
-    host = request.headers['Host']
+    # host = request.headers['Host']
 
     upstream_url = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
@@ -221,7 +229,8 @@ def list(user, path):
     # TODO print useful logs for loki
 
 
-@app.route(url_prefix + '/fetch', methods=["GET", "POST"], defaults={'path': None})
+@app.route(url_prefix + '/fetch', methods=["GET", "POST"],
+           defaults={'path': None})
 @app.route(url_prefix + '/fetch/<path:path>', methods=["GET", "POST"])
 @authenticated
 def fetch(user, path):
@@ -229,7 +238,8 @@ def fetch(user, path):
         return "Error: path cannot contain '..'", 400
 
     url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'],
-                            app.config['CTADS_UPSTREAM_BASEPATH'], (path or ""))
+                            app.config['CTADS_UPSTREAM_BASEPATH'],
+                            (path or ""))
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
     logger.info("fetching upstream url %s", url)
@@ -303,10 +313,14 @@ def upload(user, path):
     if r.status_code not in [200, 201]:
         return f"Error: {r.status_code} {r.content.decode()}", r.status_code
     else:
-        return {"status": "uploaded", "path": upload_path, "total_written": stats['total_written']}
-        # return {"status": "uploaded", "size_Mb": total_written/1024/1024, "path": upload_path}
+        return {
+            "status": "uploaded",
+            "path": upload_path,
+            "total_written": stats['total_written']
+        }
 
-    # TODO: first simple and safe mechanism would be to let users upload only to their own specialized directory with hashed name
+    # TODO: first simple and safe mechanism would be to let users upload only
+    # to their own specialized directory with hashed name
 
     # return Response(stream_with_context(generate())), headers
     # TODO print useful logs for loki
