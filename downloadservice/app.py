@@ -92,11 +92,19 @@ def authenticated(f):
                     service. At this time, the downloadservice uses jupyterhub\
                     to control access to protected resources", 500
 
-            token = session.get("token") or request.args.get('token')
+            header = request.headers.get('Authorization')
+            if header and header.startswith('Bearer '):
+                header_token = header.split()[1]
+            else:
+                header_token = None
+
+            token = session.get("token") \
+                or request.args.get('token') \
+                or header_token
 
             if token:
                 user = auth.user_for_token(token)
-                if not auth.check_scopes(
+                if user is not None and not auth.check_scopes(
                         'access:services!service=downloadservice', user):
                     user = None
             else:
