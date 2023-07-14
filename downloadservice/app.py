@@ -60,12 +60,12 @@ def create_app():
     app.config['OIDC_COOKIE_SECURE'] = False
     app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
     app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
-    app.config['CTADS_CABUNDLE'] = os.environ.get(
-        'CTADS_CABUNDLE', '/etc/cabundle.pem')
-    app.config['CTADS_CLIENTCERT'] = os.environ.get(
-        'CTADS_CLIENTCERT', '/tmp/x509up_u1000')
-    app.config['CTADS_DISABLE_ALL_AUTH'] = os.getenv(
-        'CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
+    app.config['CTADS_CABUNDLE'] = \
+        os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
+    app.config['CTADS_CLIENTCERT'] = \
+        os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
+    app.config['CTADS_DISABLE_ALL_AUTH'] = \
+        os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
     app.config['CTADS_UPSTREAM_ENDPOINT'] = "https://dcache.cta.cscs.ch:2880/"
     app.config['CTADS_UPSTREAM_BASEPATH'] = "pnfs/cta.cscs.ch/"
 
@@ -352,4 +352,43 @@ def oauth_callback():
     session["token"] = token
     next_url = auth.get_next_url(cookie_state) or url_prefix
     response = make_response(redirect(next_url))
+    return response
+
+
+webdav_methods = ['DELETE', 'GET', 'HEAD', 'LOCK', 'MKCOL', 'MOVE', 'OPTIONS',
+                  'POST', 'PROPFIND', 'PROPPATCH', 'PUT', 'TRACE', 'UNLOCK']
+
+
+@app.route(url_prefix + "/webdav", defaults={'path': ''},
+           methods=webdav_methods)
+@app.route(url_prefix + "/webdav/<path>", methods=webdav_methods)
+@authenticated
+def webdav(user, path):
+    API_HOST = urljoin_multipart(
+        app.config['CTADS_UPSTREAM_ENDPOINT'],
+        app.config['CTADS_UPSTREAM_BASEPATH']
+    )
+
+    upstream_session = get_upstream_session()
+    res = upstream_session.request(
+        method=request.method,
+        url=urljoin_multipart(API_HOST, path),
+        # exclude 'host' header
+        headers={k: v for k, v in request.headers
+                 if k.lower() not in ['host', 'authorization']},
+        data=request.get_data(),
+        cookies=request.cookies,
+        allow_redirects=False,
+    )
+
+    # Exclude all "hop-by-hop headers" defined by RFC 2616
+    # section 13.5.1 ref. https://www.rfc-editor.org/rfc/rfc2616#section-13.5.1
+    excluded_headers = ['content-encoding', 'content-length',
+                        'transfer-encoding', 'connection']
+    headers = [
+        (k, v) for k, v in res.raw.headers.items()
+        if k.lower() not in excluded_headers
+    ]
+
+    response = Response(res.content, res.status_code, headers)
     return response
