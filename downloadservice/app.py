@@ -96,7 +96,7 @@ def authenticated(f):
 
             if token:
                 user = auth.user_for_token(token)
-                if not auth.check_scopes(
+                if not user or not auth.check_scopes(
                         'access:services!service=downloadservice', user):
                     user = None
             else:
