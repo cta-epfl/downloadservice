@@ -1,8 +1,10 @@
+import json
 import subprocess
 from typing import Any
 import pytest
 import tempfile
 from flask import url_for
+from unittest import mock
 
 
 @pytest.fixture(scope="session")
@@ -13,33 +15,85 @@ def app():
         "TESTING": True,
         "CTADS_DISABLE_ALL_AUTH": True,
         "DEBUG": True,
-        "CTADS_CABUNDLE": "cabundle.pem",
+        "CTADS_CABUNDLE": "./certificats/cert.pem",
+        "CTADS_CLIENTCERT": "./certificats/cert.pem",
         "SERVER_NAME": 'app'
     })
-
-    print("config now:", app.config)
 
     return app
 
 
-def test_health(client: Any):
-    r = client.get(url_for('health'))
-    assert r.status_code == 200
-    print(r.json)
+# This method will be used by the mock to replace requests.get
+
+class MockResponse:
+    def __init__(self, data, status_code):
+        self.content = data.encode()
+        self.status_code = status_code
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, tb):
+        return self
+
+    def iter_content(self, chunk_size):
+        s = self.content
+        while len(s) > chunk_size:
+            k = chunk_size
+            while (ord(s[k]) & 0xc0) == 0x80:
+                k -= 1
+            yield s[:k]
+            s = s[k:]
+        yield s
+
+    def json(self):
+        return self.data
 
 
-def test_list(client: Any):
-    r = client.get(url_for('list', path="lst"))
-    assert r.status_code == 200
-    print(r.json)
+def mocked_health_request(*args, **kwargs):
+    if args[0] == 'PROPFIND' and args[1] == "https://dcache.cta.cscs.ch:2880/pnfs/cta.cscs.ch/lst":
+        return MockResponse("OK", 200)
+    return MockResponse("KO", 500)
 
 
-def test_fetch(client: Any):
-    r = client.get(url_for('fetch', path="md5sum-lst.txt"))
-    assert r.status_code == 200
-    print(r.json)
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_health_request)
+def test_health(app: Any, client: Any):
+    with app.app_context():
+        print(url_for('health'))
+        r = client.get(url_for('health'))
+        assert r.status_code == 200
+        print(r.json)
 
 
+def mocked_list_request(*args, **kwargs):
+    if args[0] == 'PROPFIND' and args[1] == "https://dcache.cta.cscs.ch:2880/pnfs/cta.cscs.ch/lst":
+        return MockResponse('<?xml version="1.0" encoding="utf-8" ?><multistatus xmlns="DAV:"><response><href>http://www.example.com/container/</href><propstat><prop xmlns:R="http://ns.example.com/boxschema/"><R:bigbox/><R:author/><creationdate/><displayname/><resourcetype/><supportedlock/></prop><status>HTTP/1.1 200 OK</status></propstat></response><response><href>http://www.example.com/container/front.html</href><propstat><prop xmlns:R="http://ns.example.com/boxschema/"><R:bigbox/><creationdate/><displayname/><getcontentlength/><getcontenttype/><getetag/><getlastmodified/><resourcetype/><supportedlock/></prop><status>HTTP/1.1 200 OK</status></propstat></response></multistatus>', 200)
+    return MockResponse("KO", 500)
+
+
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_list_request)
+def test_list(app: Any, client: Any):
+    with app.app_context():
+        r = client.get(url_for('list', path="lst"))
+        assert r.status_code == 200
+        print(r.json)
+
+
+def mocked_fetch_request(*args, **kwargs):
+    if args[0] == 'PROPFIND' and args[1] == "https://dcache.cta.cscs.ch:2880/pnfs/cta.cscs.ch/lst":
+        return MockResponse('<?xml version="1.0" encoding="utf-8" ?><multistatus xmlns="DAV:"><response><href>http://www.example.com/container/</href><propstat><prop xmlns:R="http://ns.example.com/boxschema/"><R:bigbox/><R:author/><creationdate/><displayname/><resourcetype/><supportedlock/></prop><status>HTTP/1.1 200 OK</status></propstat></response><response><href>http://www.example.com/container/front.html</href><propstat><prop xmlns:R="http://ns.example.com/boxschema/"><R:bigbox/><creationdate/><displayname/><getcontentlength/><getcontenttype/><getetag/><getlastmodified/><resourcetype/><supportedlock/></prop><status>HTTP/1.1 200 OK</status></propstat></response></multistatus>', 200)
+    return MockResponse("KO", 500)
+
+
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_fetch_request)
+def test_fetch(app: Any, client: Any):
+    with app.app_context():
+        r = client.get(url_for('fetch', path="md5sum-lst.txt"))
+        assert r.status_code == 200
+        print(r.json)
+
+
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_list_request)
 def test_apiclient_list(start_service):
     import ctadata
     r = ctadata.list_dir("", downloadservice=start_service['url'])
@@ -68,6 +122,7 @@ def test_apiclient_list(start_service):
             break
 
 
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_fetch_request)
 def test_apiclient_fetch(start_service, caplog):
     import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
@@ -85,6 +140,7 @@ def test_apiclient_fetch(start_service, caplog):
             break
 
 
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_health_request)
 def test_apiclient_upload(start_service, caplog):
     import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
@@ -99,6 +155,7 @@ def test_apiclient_upload(start_service, caplog):
     ctadata.fetch_and_save_file(r['path'], 'restored-file-example')
 
 
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_health_request)
 def test_apiclient_upload_invalid_path(start_service, caplog):
     import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
@@ -110,6 +167,7 @@ def test_apiclient_upload_invalid_path(start_service, caplog):
         ctadata.upload_file('local-file-example', '../example-file')
 
 
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_health_request)
 def test_apiclient_upload_wrong(start_service, caplog):
     import ctadata
     ctadata.APIClient.downloadservice = start_service['url']
@@ -122,6 +180,7 @@ def test_apiclient_upload_wrong(start_service, caplog):
                             'example-files/example-file/../')
 
 
+@mock.patch('downloadservice.app.requests.Session.request', side_effect=mocked_health_request)
 def test_apiclient_upload_dir(start_service, caplog):
     import ctadata
     ctadata.APIClient.downloadservice = start_service['url']

@@ -189,7 +189,6 @@ def list(user, path):
     if r.status_code not in [200, 207]:
         return f"Error: {r.status_code} {r.content.decode()}", r.status_code
 
-    logger.debug("request headers: %s", r.request.headers)
     logger.debug("response: %s", r.content.decode())
 
     try:
