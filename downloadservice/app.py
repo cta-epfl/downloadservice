@@ -66,8 +66,11 @@ def create_app():
         os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
     app.config['CTADS_DISABLE_ALL_AUTH'] = \
         os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
-    app.config['CTADS_UPSTREAM_ENDPOINT'] = "https://dcache.cta.cscs.ch:2880/"
-    app.config['CTADS_UPSTREAM_BASEPATH'] = "pnfs/cta.cscs.ch/"
+    app.config['CTADS_UPSTREAM_ENDPOINT'] = \
+        os.getenv('CTADS_UPSTREAM_ENDPOINT',
+                  "https://dcache.cta.cscs.ch:2880/")
+    app.config['CTADS_UPSTREAM_BASEPATH'] = \
+        os.getenv('CTADS_UPSTREAM_BASEPATH', "pnfs/cta.cscs.ch/")
 
     return app
 
@@ -148,10 +151,10 @@ def get_upstream_session():
 
 @app.route(url_prefix + "/health")
 def health():
-    url = app.config['CTADS_UPSTREAM_ENDPOINT'] + "pnfs/cta.cscs.ch/lst"
+    url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
+        app.config['CTADS_UPSTREAM_BASEPATH'] + "lst"
 
     upstream_session = get_upstream_session()
-
     try:
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
                                      timeout=5)
@@ -247,6 +250,7 @@ def fetch(user, path):
     url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'],
                             app.config['CTADS_UPSTREAM_BASEPATH'],
                             (path or ""))
+
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
     logger.info("fetching upstream url %s", url)
