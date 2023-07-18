@@ -21,7 +21,7 @@ def app():
         "DEBUG": True,
         "CTADS_CABUNDLE": "./certificats/cert.pem",
         "CTADS_CLIENTCERT": "./certificats/cert.pem",
-        'CTADS_UPSTREAM_ENDPOINT': 'http://127.0.0.1:30101/',
+        'CTADS_UPSTREAM_ENDPOINT': 'http://127.0.0.1:31102/',
         'CTADS_UPSTREAM_BASEPATH': '',
         "SERVER_NAME": 'app',
     })
@@ -35,7 +35,7 @@ def webdav_server():
     try:
         config = {
             "host": "127.0.0.1",
-            "port": 30101,
+            "port": 31102,
             "provider_mapping": {
                 "/": "./test_data",
             },
@@ -146,12 +146,12 @@ def test_apiclient_upload(start_service, caplog):
         import ctadata
         ctadata.APIClient.downloadservice = start_service['url']
 
-        # subprocess.check_call([
-        #     "dd", "if=/dev/random", "of=local-file-example", "bs=1k", "count=1000"
-        # ])
+        subprocess.check_call([
+            "dd", "if=/dev/random", "of=local-file-example", "bs=1k", "count=1000"
+        ])
 
         r = ctadata.upload_file('./test_data/md5sum-lst.txt',
-                                'example-files/example-file')
+                                'example-files/example-file-2')
         print(r)
 
         ctadata.fetch_and_save_file(r['path'], 'restored-file-example')
