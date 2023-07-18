@@ -9,11 +9,14 @@ from wsgidav.wsgidav_app import WsgiDAVApp
 from cheroot import wsgi
 import threading
 import time
+import os
 
 
 @pytest.fixture(scope="session")
 def app():
     from downloadservice.app import app
+
+    os.system("openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout certificates/key.pem -out certificates/cert.pem -batch")
 
     app.config.update({
         "TESTING": True,

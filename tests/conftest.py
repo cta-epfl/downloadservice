@@ -24,6 +24,8 @@ def kill_child_processes(parent_pid, sig=signal.SIGINT):
 @pytest.fixture
 def start_service(pytestconfig):
 
+    os.system("openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout certificates/key.pem -out certificates/cert.pem -batch")
+
     rootdir = pytestconfig.rootdir
 
     env = copy.deepcopy(dict(os.environ))
