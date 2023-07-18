@@ -141,20 +141,22 @@ def test_apiclient_fetch(start_service, caplog):
                 break
 
 
-def test_apiclient_upload(start_service, caplog):
+def test_apiclient_upload_single_file(start_service, caplog):
     with webdav_server():
         import ctadata
         ctadata.APIClient.downloadservice = start_service['url']
 
-        subprocess.check_call([
-            "dd", "if=/dev/random", "of=local-file-example", "bs=1k", "count=1000"
-        ])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            subprocess.check_call([
+                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=1"
+            ])
 
-        r = ctadata.upload_file('./test_data/md5sum-lst.txt',
-                                'example-files/example-file-2')
-        print(r)
+            r = ctadata.upload_file(f'{tmpdir}/local-file-example',
+                                    'example-files/example-file')
 
-        ctadata.fetch_and_save_file(r['path'], 'restored-file-example')
+            print(r)
+
+            ctadata.fetch_and_save_file(r['path'], 'restored-file-example')
 
 
 def test_apiclient_upload_invalid_path(start_service, caplog):
@@ -162,11 +164,13 @@ def test_apiclient_upload_invalid_path(start_service, caplog):
         import ctadata
         ctadata.APIClient.downloadservice = start_service['url']
 
-        subprocess.check_call(
-            ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            subprocess.check_call(
+                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=1"])
 
-        with pytest.raises(ctadata.api.StorageException):
-            ctadata.upload_file('local-file-example', '../example-file')
+            with pytest.raises(ctadata.api.StorageException):
+                ctadata.upload_file(
+                    f'{tmpdir}/local-file-example', '../example-file')
 
 
 def test_apiclient_upload_wrong(start_service, caplog):
@@ -174,12 +178,13 @@ def test_apiclient_upload_wrong(start_service, caplog):
         import ctadata
         ctadata.APIClient.downloadservice = start_service['url']
 
-        subprocess.check_call(
-            ["dd", "if=/dev/random", "of=local-file-example", "bs=1M", "count=1"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            subprocess.check_call(
+                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=1"])
 
-        with pytest.raises(ctadata.api.StorageException):
-            ctadata.upload_file('local-file-example',
-                                'example-files/example-file/../')
+            with pytest.raises(ctadata.api.StorageException):
+                ctadata.upload_file(f'{tmpdir}/local-file-example',
+                                    'example-files/example-file/../')
 
 
 def test_apiclient_upload_dir(start_service, caplog):
@@ -189,6 +194,7 @@ def test_apiclient_upload_dir(start_service, caplog):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             for i in range(10):
+                print(f"{tmpdir}/local-file-example-{i}")
                 subprocess.check_call([
                     "dd", "if=/dev/random", f"of={tmpdir}/local-file-example-{i}",
                     "bs=1M", "count=1"
