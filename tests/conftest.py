@@ -35,8 +35,8 @@ def start_service(pytestconfig):
 
     env['CTADS_DISABLE_ALL_AUTH'] = 'True'
     env['CTADS_CABUNDLE'] = "cabundle.pem"
-    env["CTADS_CABUNDLE"] = "./certificats/cert.pem"
-    env["CTADS_CLIENTCERT"] = "./certificats/cert.pem"
+    env["CTADS_CABUNDLE"] = "./certificates/cert.pem"
+    env["CTADS_CLIENTCERT"] = "./certificates/cert.pem"
     env['CTADS_UPSTREAM_ENDPOINT'] = 'http://127.0.0.1:31102/'
     env['CTADS_UPSTREAM_BASEPATH'] = ''
 
