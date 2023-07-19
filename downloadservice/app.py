@@ -157,7 +157,7 @@ def health():
     upstream_session = get_upstream_session()
     try:
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
-                                     timeout=5)
+                                     timeout=10)
         if r.status_code in [200, 207]:
             return "OK", 200
         else:
