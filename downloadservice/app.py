@@ -225,7 +225,7 @@ def list(user, path):
         up = urlparse(request.url)
         entry['href'] = re.sub(
             '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
-        logger.debug(path, type(path))
+
         entry['url'] = "/".join([
             up.scheme + ":/", up.netloc,
             re.sub(path, '', up.path), entry['href']
