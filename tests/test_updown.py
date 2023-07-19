@@ -47,13 +47,17 @@ def webdav_server():
                     "*": True
                 },
             },
-            "verbose": 1,
+            "logging": {
+                "enable": True,
+            },
+            "verbose": 5,
         }
         app = WsgiDAVApp(config)
 
         server_args = {
             "bind_addr": (config["host"], config["port"]),
             "wsgi_app": app,
+            "timeout": 30,
         }
         httpserver = wsgi.Server(**server_args)
     except OSError:
@@ -61,16 +65,11 @@ def webdav_server():
 
     httpserver.shutdown_timeout = 0  # Speed-up tests teardown
 
-    threading.Thread(target=httpserver.safe_start).start()  # spawn it
-    while not httpserver.ready:  # wait until fully initialized and bound
-        time.sleep(0.1)
-
-    yield httpserver
-
-    httpserver.stop()  # destroy it
+    with httpserver._run_in_thread() as thread:
+        yield locals()
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_health(app: Any, client: Any):
     with webdav_server():
         with app.app_context():
@@ -80,7 +79,7 @@ def test_health(app: Any, client: Any):
             assert r.status_code == 200
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_list(app: Any, client: Any):
     with webdav_server():
         with app.app_context():
@@ -89,7 +88,7 @@ def test_list(app: Any, client: Any):
             print(r.json)
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_fetch(app: Any, client: Any):
     with webdav_server():
         with app.app_context():
@@ -98,7 +97,7 @@ def test_fetch(app: Any, client: Any):
             print(r.json)
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_apiclient_list(start_service):
     with webdav_server():
         import ctadata
@@ -128,7 +127,7 @@ def test_apiclient_list(start_service):
                 break
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_apiclient_fetch(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -149,7 +148,7 @@ def test_apiclient_fetch(start_service, caplog):
                 break
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_apiclient_upload_single_file(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -157,18 +156,20 @@ def test_apiclient_upload_single_file(start_service, caplog):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subprocess.check_call([
-                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=1"
+                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=100"
             ])
 
             r = ctadata.upload_file(f'{tmpdir}/local-file-example',
                                     'example-files/example-file')
+            # r = ctadata.upload_file('/server/test_data/base-data',
+            #                         'example-files/example-file')
 
             print(r)
 
             ctadata.fetch_and_save_file(r['path'], 'restored-file-example')
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_apiclient_upload_invalid_path(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -183,7 +184,7 @@ def test_apiclient_upload_invalid_path(start_service, caplog):
                     f'{tmpdir}/local-file-example', '../example-file')
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_apiclient_upload_wrong(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -198,7 +199,7 @@ def test_apiclient_upload_wrong(start_service, caplog):
                                     'example-files/example-file/../')
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_apiclient_upload_dir(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -216,7 +217,7 @@ def test_apiclient_upload_dir(start_service, caplog):
 
 
 @pytest.mark.xfail(reason="dav not implemented yet")
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(15)
 def test_dav_list(start_service):
     with webdav_server():
         from webdav4.client import Client

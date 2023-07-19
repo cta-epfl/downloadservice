@@ -172,7 +172,7 @@ def health():
 # @oidc.accept_token(require_token=True)
 
 @app.route(url_prefix + '/list', methods=["GET", "POST"],
-           defaults={'path': None})
+           defaults={'path': ''})
 @app.route(url_prefix + '/list/<path:path>', methods=["GET", "POST"])
 @authenticated
 def list(user, path):
@@ -225,6 +225,7 @@ def list(user, path):
         up = urlparse(request.url)
         entry['href'] = re.sub(
             '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
+        logger.debug(path, type(path))
         entry['url'] = "/".join([
             up.scheme + ":/", up.netloc,
             re.sub(path, '', up.path), entry['href']
@@ -302,6 +303,7 @@ def upload(user, path):
     logger.info("uploading to path %s", path)
     logger.info("uploading to base upstream url %s", baseurl)
     logger.info("uploading to upstream url %s", url)
+    logger.info("uploading chunk size %s", chunk_size)
 
     upstream_session = get_upstream_session()
 
@@ -315,8 +317,10 @@ def upload(user, path):
                         len(r)/1024**2, stats['total_written']/1024**2)
             stats['total_written'] += len(r)
             yield r
+        yield r
 
-    r = upstream_session.put(url, data=generate(stats))
+    # r = upstream_session.put(url, data=generate(stats))
+    r = upstream_session.put(url, data=request.stream.read())
     # r = upstream_session.put(url, stream=True, data=request.stream)
 
     logger.info("%s %s %s", url, r, r.text)
