@@ -165,7 +165,5 @@ def start_service(pytestconfig):
             pid=p.pid
         )
 
-        # TODO: Clean certificates directly
-
         kill_child_processes(p.pid, signal.SIGINT)
         os.kill(p.pid, signal.SIGINT)
