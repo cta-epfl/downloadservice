@@ -4,69 +4,7 @@ import pytest
 import tempfile
 from flask import url_for
 
-from contextlib import contextmanager
-from wsgidav.wsgidav_app import WsgiDAVApp
-from cheroot import wsgi
-import threading
-import time
-import os
-
-
-@pytest.fixture(scope="session")
-def app():
-    from downloadservice.app import app
-
-    os.system("openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout certificates/key.pem -out certificates/cert.pem -batch")
-
-    app.config.update({
-        "TESTING": True,
-        "CTADS_DISABLE_ALL_AUTH": True,
-        "DEBUG": True,
-        "CTADS_CABUNDLE": "./certificates/cert.pem",
-        "CTADS_CLIENTCERT": "./certificates/cert.pem",
-        'CTADS_UPSTREAM_ENDPOINT': 'http://127.0.0.1:31102/',
-        'CTADS_UPSTREAM_BASEPATH': '',
-        "SERVER_NAME": 'app',
-    })
-
-    return app
-
-
-@contextmanager
-def webdav_server():
-    """Set up and tear down a Cheroot server instance."""
-    try:
-        config = {
-            "host": "127.0.0.1",
-            "port": 31102,
-            "provider_mapping": {
-                "/": "./test_data",
-            },
-            "simple_dc": {
-                "user_mapping": {
-                    "*": True
-                },
-            },
-            "logging": {
-                "enable": True,
-            },
-            "verbose": 5,
-        }
-        app = WsgiDAVApp(config)
-
-        server_args = {
-            "bind_addr": (config["host"], config["port"]),
-            "wsgi_app": app,
-            "timeout": 30,
-        }
-        httpserver = wsgi.Server(**server_args)
-    except OSError:
-        pass
-
-    httpserver.shutdown_timeout = 0  # Speed-up tests teardown
-
-    with httpserver._run_in_thread() as thread:
-        yield locals()
+from conftest import webdav_server
 
 
 @pytest.mark.timeout(15)
@@ -90,7 +28,12 @@ def test_list(app: Any, client: Any):
 
 @pytest.mark.timeout(15)
 def test_fetch(app: Any, client: Any):
-    with webdav_server():
+    with webdav_server() as server:
+        subprocess.check_call([
+            "dd", "if=/dev/random",
+            f"of={server['config']['provider_mapping']['/']}/md5sum-lst.txt",
+            "bs=1M", "count=10"
+        ])
         with app.app_context():
             r = client.get(url_for('fetch', path="md5sum-lst.txt"))
             assert r.status_code == 200
@@ -156,7 +99,8 @@ def test_apiclient_upload_single_file(start_service, caplog):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subprocess.check_call([
-                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=100"
+                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example",
+                "bs=1M", "count=100"
             ])
 
             r = ctadata.upload_file(f'{tmpdir}/local-file-example',
@@ -177,7 +121,8 @@ def test_apiclient_upload_invalid_path(start_service, caplog):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subprocess.check_call(
-                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=1"])
+                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example",
+                 "bs=1M", "count=1"])
 
             with pytest.raises(ctadata.api.StorageException):
                 ctadata.upload_file(
@@ -192,7 +137,8 @@ def test_apiclient_upload_wrong(start_service, caplog):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subprocess.check_call(
-                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example", "bs=1M", "count=1"])
+                ["dd", "if=/dev/random", f"of={tmpdir}/local-file-example",
+                 "bs=1M", "count=1"])
 
             with pytest.raises(ctadata.api.StorageException):
                 ctadata.upload_file(f'{tmpdir}/local-file-example',
@@ -209,8 +155,8 @@ def test_apiclient_upload_dir(start_service, caplog):
             for i in range(10):
                 print(f"{tmpdir}/local-file-example-{i}")
                 subprocess.check_call([
-                    "dd", "if=/dev/random", f"of={tmpdir}/local-file-example-{i}",
-                    "bs=1M", "count=1"
+                    "dd", "if=/dev/random",
+                    f"of={tmpdir}/local-file-example-{i}", "bs=1M", "count=1"
                 ])
 
             ctadata.upload_dir(tmpdir, 'example-files/tmpdir')

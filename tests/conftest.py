@@ -2,13 +2,78 @@ import os
 import copy
 import re
 import subprocess
+import tempfile
 from threading import Thread
 import time
 import pytest
 import signal
 import psutil
 
+from contextlib import contextmanager
+from wsgidav.wsgidav_app import WsgiDAVApp
+from cheroot import wsgi
+
 __this_dir__ = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+
+
+@pytest.fixture(scope="session")
+def app():
+    from downloadservice.app import app
+
+    os.system("openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
+              -keyout certificates/key.pem -out certificates/cert.pem -batch")
+
+    app.config.update({
+        "TESTING": True,
+        "CTADS_DISABLE_ALL_AUTH": True,
+        "DEBUG": True,
+        "CTADS_CABUNDLE": "./certificates/cert.pem",
+        "CTADS_CLIENTCERT": "./certificates/cert.pem",
+        'CTADS_UPSTREAM_ENDPOINT': 'http://127.0.0.1:31102/',
+        'CTADS_UPSTREAM_BASEPATH': '',
+        "SERVER_NAME": 'app',
+    })
+
+    return app
+
+
+@contextmanager
+def webdav_server():
+    """Set up and tear down a Cheroot server instance."""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, 'lst/users/anonymous/example-files/tmpdir')
+        os.makedirs(path)
+
+        config = {
+            "host": "127.0.0.1",
+            "port": 31102,
+            "provider_mapping": {
+                "/": tmpdir,
+            },
+            "simple_dc": {
+                "user_mapping": {
+                    "*": True
+                },
+            },
+            "logging": {
+                "enable": True,
+            },
+            "verbose": 5,
+        }
+        app = WsgiDAVApp(config)
+
+        server_args = {
+            "bind_addr": (config["host"], config["port"]),
+            "wsgi_app": app,
+            "timeout": 30,
+        }
+        httpserver = wsgi.Server(**server_args)
+
+        httpserver.shutdown_timeout = 0  # Speed-up tests teardown
+
+        with httpserver._run_in_thread() as thread:
+            yield locals()
 
 
 def kill_child_processes(parent_pid, sig=signal.SIGINT):
@@ -24,7 +89,8 @@ def kill_child_processes(parent_pid, sig=signal.SIGINT):
 @pytest.fixture
 def start_service(pytestconfig):
 
-    os.system("openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout certificates/key.pem -out certificates/cert.pem -batch")
+    os.system("openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
+              -keyout certificates/key.pem -out certificates/cert.pem -batch")
 
     rootdir = pytestconfig.rootdir
 
