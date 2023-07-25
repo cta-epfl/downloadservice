@@ -241,7 +241,7 @@ def list(user, path):
 
 
 @app.route(url_prefix + '/fetch', methods=["GET", "POST"],
-           defaults={'path': None})
+           defaults={'path': ''})
 @app.route(url_prefix + '/fetch/<path:path>', methods=["GET", "POST"])
 @authenticated
 def fetch(user, path):

@@ -53,7 +53,6 @@ def test_apiclient_list(start_service):
     with webdav_server():
         import ctadata
         r = ctadata.list_dir("", downloadservice=start_service['url'])
-
         print(r)
 
         ctadata.APIClient.downloadservice = start_service['url']
@@ -113,7 +112,6 @@ def test_apiclient_upload_single_file(start_service, caplog):
 
             r = ctadata.upload_file(f'{tmpdir}/local-file-example',
                                     'example-files/example-file')
-
             print(r)
 
             ctadata.fetch_and_save_file(
