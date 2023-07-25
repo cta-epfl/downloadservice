@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import requests
 import secrets
 import xml.etree.ElementTree as ET
+import webdav4.client
 
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,
@@ -317,10 +318,8 @@ def upload(user, path):
                         len(r)/1024**2, stats['total_written']/1024**2)
             stats['total_written'] += len(r)
             yield r
-        yield r
 
-    # r = upstream_session.put(url, data=generate(stats))
-    r = upstream_session.put(url, data=request.stream.read())
+    r = upstream_session.put(url, data=generate(stats))
     # r = upstream_session.put(url, stream=True, data=request.stream)
 
     logger.info("%s %s %s", url, r, r.text)

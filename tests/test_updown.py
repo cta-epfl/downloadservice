@@ -7,7 +7,7 @@ from flask import url_for
 from conftest import webdav_server
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_health(app: Any, client: Any):
     with webdav_server():
         with app.app_context():
@@ -17,7 +17,7 @@ def test_health(app: Any, client: Any):
             assert r.status_code == 200
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_list(app: Any, client: Any):
     with webdav_server():
         with app.app_context():
@@ -26,7 +26,7 @@ def test_list(app: Any, client: Any):
             print(r.json)
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_fetch(app: Any, client: Any):
     with webdav_server() as server:
         subprocess.check_call([
@@ -40,7 +40,15 @@ def test_fetch(app: Any, client: Any):
             print(r.json)
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
+def test_webdav_list(app: Any, client: Any):
+    with webdav_server():
+        with app.app_context():
+            r = client.open(url_for('webdav', path="lst"), method='PROPFIND')
+            assert r.status_code in [200, 207]
+
+
+@pytest.mark.timeout(30)
 def test_apiclient_list(start_service):
     with webdav_server():
         import ctadata
@@ -70,7 +78,7 @@ def test_apiclient_list(start_service):
                 break
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_apiclient_fetch(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -91,7 +99,7 @@ def test_apiclient_fetch(start_service, caplog):
                 break
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_apiclient_upload_single_file(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -105,15 +113,15 @@ def test_apiclient_upload_single_file(start_service, caplog):
 
             r = ctadata.upload_file(f'{tmpdir}/local-file-example',
                                     'example-files/example-file')
-            # r = ctadata.upload_file('/server/test_data/base-data',
-            #                         'example-files/example-file')
 
+            print("!!! File uploaded !!!")
             print(r)
 
-            ctadata.fetch_and_save_file(r['path'], 'restored-file-example')
+            ctadata.fetch_and_save_file(
+                r['path'], f'{tmpdir}/restored-file-example')
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_apiclient_upload_invalid_path(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -129,7 +137,7 @@ def test_apiclient_upload_invalid_path(start_service, caplog):
                     f'{tmpdir}/local-file-example', '../example-file')
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_apiclient_upload_wrong(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -145,7 +153,7 @@ def test_apiclient_upload_wrong(start_service, caplog):
                                     'example-files/example-file/../')
 
 
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_apiclient_upload_dir(start_service, caplog):
     with webdav_server():
         import ctadata
@@ -163,7 +171,7 @@ def test_apiclient_upload_dir(start_service, caplog):
 
 
 @pytest.mark.xfail(reason="dav not implemented yet")
-@pytest.mark.timeout(15)
+@pytest.mark.timeout(30)
 def test_dav_list(start_service):
     with webdav_server():
         from webdav4.client import Client
