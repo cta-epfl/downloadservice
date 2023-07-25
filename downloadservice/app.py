@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 import requests
 import secrets
 import xml.etree.ElementTree as ET
-import webdav4.client
 
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,

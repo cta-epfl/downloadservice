@@ -114,7 +114,6 @@ def test_apiclient_upload_single_file(start_service, caplog):
             r = ctadata.upload_file(f'{tmpdir}/local-file-example',
                                     'example-files/example-file')
 
-            print("!!! File uploaded !!!")
             print(r)
 
             ctadata.fetch_and_save_file(
