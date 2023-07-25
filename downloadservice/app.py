@@ -366,13 +366,20 @@ webdav_methods = ['DELETE', 'GET', 'HEAD', 'LOCK', 'MKCOL', 'MOVE', 'OPTIONS',
 
 @app.route(url_prefix + "/webdav", defaults={'path': ''},
            methods=webdav_methods)
-@app.route(url_prefix + "/webdav/<path>", methods=webdav_methods)
+@app.route(url_prefix + "/webdav/<path:path>", methods=webdav_methods)
 @authenticated
 def webdav(user, path):
     API_HOST = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
         app.config['CTADS_UPSTREAM_BASEPATH']
     )
+
+    def request_data_stream():
+        if request.headers.get('HTTP_TRANSFER_ENCODING', '').lower() == 'chunked':
+            request.get_data()
+        else:
+            while buf := request.stream.read(default_chunk_size) != b"":
+                yield buf
 
     upstream_session = get_upstream_session()
     res = upstream_session.request(
@@ -381,7 +388,7 @@ def webdav(user, path):
         # exclude 'host' header
         headers={k: v for k, v in request.headers
                  if k.lower() not in ['host', 'authorization']},
-        data=request.get_data(),
+        data=request_data_stream(),
         cookies=request.cookies,
         allow_redirects=False,
     )
@@ -395,5 +402,13 @@ def webdav(user, path):
         if k.lower() not in excluded_headers
     ]
 
-    response = Response(res.content, res.status_code, headers)
+    def response_content_stream():
+        if res.raw.headers.get('HTTP_TRANSFER_ENCODING', '').lower() == 'chunked':
+            return res.content
+        else:
+            while buf := res.iter_content() != b"":
+                raise Exception(buf)
+                yield buf
+
+    response = Response(response_content_stream(), res.status_code, headers)
     return response

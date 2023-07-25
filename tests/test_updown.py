@@ -167,14 +167,41 @@ def test_apiclient_upload_dir(start_service, caplog):
             ctadata.upload_dir(tmpdir, 'example-files/tmpdir')
 
 
-@pytest.mark.xfail(reason="dav not implemented yet")
 @pytest.mark.timeout(30)
-def test_dav_list(start_service):
+def test_webdav4_client_list(start_service):
     with webdav_server():
         from webdav4.client import Client
 
-        client = Client(start_service['url'] + "/dav/lst")
-        client.exists("bla")
-
+        client = Client(start_service['url'] + "/webdav/lst")
         client.ls("", detail=True)
-        client.upload_file("test")
+
+
+@pytest.mark.timeout(30)
+def test_webdav4_client_upload(start_service):
+    with webdav_server():
+        from webdav4.client import Client
+
+        client = Client(start_service['url'] + "/webdav/lst")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            subprocess.check_call([
+                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example",
+                "bs=1M", "count=100"
+            ])
+
+            file_uri = 'uploaded-file'
+
+            def on_success(res):
+                pass
+
+            def on_upload(res):
+                # raise Exception(res)
+                client.download_file(
+                    file_uri,
+                    f'{tmpdir}/restored-file-example',
+                    callback=on_success)
+
+            client.upload_file(
+                f'{tmpdir}/local-file-example',
+                file_uri)  # ,
+            # callback=on_upload)
