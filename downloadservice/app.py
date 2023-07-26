@@ -374,21 +374,21 @@ def webdav(user, path):
         app.config['CTADS_UPSTREAM_BASEPATH']
     )
 
+    def is_chunk_encoded():
+        return request.headers.get('transfer-encoding', '').lower() == 'chunked'
+
     def request_data_stream():
-        if request.headers.get('HTTP_TRANSFER_ENCODING', '').lower() == 'chunked':
-            request.get_data()
-        else:
-            while buf := request.stream.read(default_chunk_size) != b"":
-                yield buf
+        while (buf := request.stream.read(default_chunk_size)) != b'':
+            yield buf
 
     upstream_session = get_upstream_session()
     res = upstream_session.request(
         method=request.method,
         url=urljoin_multipart(API_HOST, path),
-        # exclude 'host' header
+        # exclude 'host' and 'authorization' header
         headers={k: v for k, v in request.headers
                  if k.lower() not in ['host', 'authorization']},
-        data=request_data_stream(),
+        data=request_data_stream() if is_chunk_encoded() else request.get_data(),
         cookies=request.cookies,
         allow_redirects=False,
     )
@@ -403,12 +403,11 @@ def webdav(user, path):
     ]
 
     def response_content_stream():
-        if res.raw.headers.get('HTTP_TRANSFER_ENCODING', '').lower() == 'chunked':
-            return res.content
-        else:
-            while buf := res.iter_content() != b"":
-                raise Exception(buf)
-                yield buf
+        # if res.raw.headers.get('HTTP_TRANSFER_ENCODING', '').lower() == 'chunked':
+        #     logger.debug("!!!!!!!! Chunk download transfer")
+        #     while (buf := res.raw.read(default_chunk_size)) != b"":
+        #         yield buf
+        # else:
+        yield res.content
 
-    response = Response(response_content_stream(), res.status_code, headers)
-    return response
+    return Response(response_content_stream(), res.status_code, headers)

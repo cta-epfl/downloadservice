@@ -203,5 +203,6 @@ def test_webdav4_client_upload(start_service):
 
             client.upload_file(
                 f'{tmpdir}/local-file-example',
-                file_uri)  # ,
+                file_uri,
+                chunk_size=1024**2)  # ,
             # callback=on_upload)
