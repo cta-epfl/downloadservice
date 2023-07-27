@@ -27,7 +27,7 @@ def test_list(app: Any, client: Any):
 
 
 @pytest.mark.timeout(30)
-def test_fetch(app: Any, client: Any):
+def test_download(app: Any, client: Any):
     with webdav_server() as server:
         subprocess.check_call([
             "dd", "if=/dev/random",
@@ -177,7 +177,28 @@ def test_webdav4_client_list(start_service):
 
 
 @pytest.mark.timeout(30)
-def test_webdav4_client_upload(start_service):
+def test_webdav4_client_upload_denied(start_service):
+    with webdav_server():
+        from webdav4.client import Client, HTTPError
+
+        client = Client(start_service['url'] + "/webdav/lst")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            subprocess.check_call([
+                "dd", "if=/dev/random", f"of={tmpdir}/local-file-example",
+                "bs=1M", "count=1"
+            ])
+
+            with pytest.raises(HTTPError):
+                client.upload_file(
+                    f'{tmpdir}/local-file-example',
+                    'uploaded-file',
+                    chunk_size=1024**2,
+                )
+
+
+@pytest.mark.timeout(30)
+def test_webdav4_client_upload_valid(start_service):
     with webdav_server():
         from webdav4.client import Client
 
@@ -189,20 +210,28 @@ def test_webdav4_client_upload(start_service):
                 "bs=1M", "count=100"
             ])
 
-            file_uri = 'uploaded-file'
-
-            def on_success(res):
-                pass
-
-            def on_upload(res):
-                # raise Exception(res)
-                client.download_file(
-                    file_uri,
-                    f'{tmpdir}/restored-file-example',
-                    callback=on_success)
-
             client.upload_file(
                 f'{tmpdir}/local-file-example',
-                file_uri,
-                chunk_size=1024**2)  # ,
-            # callback=on_upload)
+                'users/anonymous/uploaded-file',
+                chunk_size=1024**2,
+            )
+
+
+@pytest.mark.timeout(30)
+def test_webdav4_client_download(start_service):
+    with webdav_server() as server:
+        subprocess.check_call([
+            "dd", "if=/dev/random",
+            f"of={server['config']['provider_mapping']['/']}/lst/file.txt",
+            "bs=1M", "count=10"
+        ])
+
+        from webdav4.client import Client
+
+        client = Client(start_service['url'] + "/webdav/lst")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            client.download_file(
+                'file.txt',
+                f'{tmpdir}/restored-file-example',
+            )

@@ -360,8 +360,10 @@ def oauth_callback():
     return response
 
 
-webdav_methods = ['DELETE', 'GET', 'HEAD', 'LOCK', 'MKCOL', 'MOVE', 'OPTIONS',
-                  'POST', 'PROPFIND', 'PROPPATCH', 'PUT', 'TRACE', 'UNLOCK']
+webdav_methods = ['GET', 'HEAD',  'MKCOL', 'OPTIONS',
+                  'PROPFIND', 'PROPPATCH', 'PUT', 'TRACE',
+                  # 'LOCK', 'UNLOCK', 'POST', 'DELETE', 'MOVE',
+                  ]
 
 
 @app.route(url_prefix + "/webdav", defaults={'path': ''},
@@ -371,15 +373,21 @@ webdav_methods = ['DELETE', 'GET', 'HEAD', 'LOCK', 'MKCOL', 'MOVE', 'OPTIONS',
 def webdav(user, path):
     API_HOST = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
-        app.config['CTADS_UPSTREAM_BASEPATH']
+        app.config['CTADS_UPSTREAM_BASEPATH'],
     )
 
-    def is_chunk_encoded():
-        return request.headers.get('transfer-encoding', '').lower() == 'chunked'
+    def is_chunked():
+        return request.headers.get('transfer-encoding', '').lower() \
+            == 'chunked'
 
-    def request_data_stream():
+    def request_datastream():
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
+
+    username = "anonymous"
+    if request.method in ['PUT', 'MKCOL'] and \
+            not path.startswith("lst/users/"+username+"/"):
+        return "Access denied for : "+path, 403
 
     upstream_session = get_upstream_session()
     res = upstream_session.request(
@@ -388,7 +396,7 @@ def webdav(user, path):
         # exclude 'host' and 'authorization' header
         headers={k: v for k, v in request.headers
                  if k.lower() not in ['host', 'authorization']},
-        data=request_data_stream() if is_chunk_encoded() else request.get_data(),
+        data=request_datastream() if is_chunked() else request.get_data(),
         cookies=request.cookies,
         allow_redirects=False,
     )
@@ -402,12 +410,19 @@ def webdav(user, path):
         if k.lower() not in excluded_headers
     ]
 
-    def response_content_stream():
-        # if res.raw.headers.get('HTTP_TRANSFER_ENCODING', '').lower() == 'chunked':
-        #     logger.debug("!!!!!!!! Chunk download transfer")
-        #     while (buf := res.raw.read(default_chunk_size)) != b"":
-        #         yield buf
-        # else:
-        yield res.content
+    server_prefix = "/webdav"
 
-    return Response(response_content_stream(), res.status_code, headers)
+    def is_prop_method():
+        return request.method in ['PROPFIND', 'PROPPATCH']
+
+    def prop_content():
+        data = res.content\
+            .replace(b":href>/lst/", (":href>"+server_prefix+"/lst/").encode())
+        logger.debug(data)
+        return data
+
+    return Response(
+        prop_content() if is_prop_method else res.content,
+        res.status_code,
+        headers
+    )
