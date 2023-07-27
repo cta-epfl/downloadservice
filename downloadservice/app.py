@@ -71,6 +71,10 @@ def create_app():
                   "https://dcache.cta.cscs.ch:2880/")
     app.config['CTADS_UPSTREAM_BASEPATH'] = \
         os.getenv('CTADS_UPSTREAM_BASEPATH', "pnfs/cta.cscs.ch/")
+    app.config['CTADS_UPSTREAM_BASEPATH'] = \
+        os.getenv('CTADS_UPSTREAM_BASEPATH', "pnfs/cta.cscs.ch/")
+    app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
+        os.getenv('CTADS_UPSTREAM_BASEFOLDER', "lst")
 
     return app
 
@@ -152,7 +156,8 @@ def get_upstream_session():
 @app.route(url_prefix + "/health")
 def health():
     url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
-        app.config['CTADS_UPSTREAM_BASEPATH'] + "lst"
+        app.config['CTADS_UPSTREAM_BASEPATH'] + \
+        app.config['CTADS_UPSTREAM_BASEFOLDER']
 
     upstream_session = get_upstream_session()
     try:
@@ -287,7 +292,9 @@ def upload(user, path):
         return "Error: path cannot contain '..'", 400
 
     upload_base_path = urljoin_multipart(
-        "lst/users", user_to_path_fragment(user))
+        app.config['CTADS_UPSTREAM_BASEFOLDER'],
+        "users",
+        user_to_path_fragment(user))
     upload_path = urljoin_multipart(upload_base_path, path)
 
     baseurl = urljoin_multipart(
@@ -384,10 +391,13 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    username = "anonymous"
-    if request.method in ['PUT', 'MKCOL'] and \
-            not path.startswith("lst/users/"+username+"/"):
-        return "Access denied for : "+path, 403
+    if request.method in ['PUT', 'MKCOL'] and not path.startswith(
+            urljoin_multipart(
+                app.config['CTADS_UPSTREAM_BASEFOLDER'],
+                "users",
+                user_to_path_fragment(user))
+            + "/"):
+        return "Access denied for : " + path, 403
 
     upstream_session = get_upstream_session()
     res = upstream_session.request(
@@ -410,16 +420,19 @@ def webdav(user, path):
         if k.lower() not in excluded_headers
     ]
 
-    server_prefix = "/webdav"
+    endpoint_prefix = url_prefix+"/webdav"
 
     def is_prop_method():
         return request.method in ['PROPFIND', 'PROPPATCH']
 
     def prop_content():
-        data = res.content\
-            .replace(b":href>/lst/", (":href>"+server_prefix+"/lst/").encode())
-        logger.debug(data)
-        return data
+        return res.content\
+            .replace(
+                (":href>/" +
+                 app.config['CTADS_UPSTREAM_BASEFOLDER'] + "/").encode(),
+                (":href>"+endpoint_prefix+"/" +
+                 app.config['CTADS_UPSTREAM_BASEFOLDER']+"/").encode()
+            )
 
     return Response(
         prop_content() if is_prop_method else res.content,
