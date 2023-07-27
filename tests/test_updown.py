@@ -235,3 +235,12 @@ def test_webdav4_client_download(start_service):
                 'file.txt',
                 f'{tmpdir}/restored-file-example',
             )
+
+
+@pytest.mark.timeout(30)
+def test_webdav4_client_mkdir(start_service):
+    with webdav_server():
+        from webdav4.client import Client
+
+        client = Client(start_service['url'] + "/webdav/lst")
+        client.mkdir('users/anonymous/test')
