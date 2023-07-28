@@ -24,14 +24,16 @@ def test_webdav4_client_upload_denied(testing_download_service):
             generate_random_file(local_file, 1*(1024**2))
 
             with pytest.raises(HTTPError):
+                remote_file = "upload-file"
                 try:
                     client.upload_file(
-                        local_file,
-                        'uploaded-file',
-                        chunk_size=1024**2,
-                    )
+                        local_file, remote_file, chunk_size=1024**2)
                 except HTTPError as e:
-                    assert "Missing rights to write in" in e.__str__()
+                    print(e.__str__())
+                    assert "received 403 (Missing rights to write in : " +\
+                        f"lst/{remote_file}, you are only allowed to write " +\
+                        "in lst/users/anonymous/)" == \
+                        e.__str__()
                     raise e
 
 

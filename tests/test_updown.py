@@ -39,9 +39,6 @@ def test_download(app: Any, client: Any):
             with tempfile.TemporaryDirectory() as tmpdir:
                 downloaded_file = f"{tmpdir}/generated-file"
                 with open(downloaded_file, 'wb') as fout:
-                    print(type(r))
-                    print(dir(r))
-                    print(dir(r.stream))
                     for buf in r.iter_encoded():
                         fout.write(buf)
 
@@ -58,13 +55,11 @@ def test_webdav_list(app: Any, client: Any):
             data = r.get_data()
             xml_res = xmltodict.parse(data)
 
-            assert len(xml_res['ns0:multistatus']['ns0:response']) == 5
-
             expected = ['/webdav/lst/',
                         '/webdav/lst/users/',
                         '/webdav/lst/users/anonymous/',
                         '/webdav/lst/users/anonymous/example-files/',
                         '/webdav/lst/users/anonymous/example-files/tmpdir/']
 
-            for elem in xml_res['ns0:multistatus']['ns0:response']:
-                assert elem['ns0:href'] in expected
+            assert set([e['ns0:href'] for e in xml_res['ns0:multistatus']
+                       ['ns0:response']]) == set(expected)

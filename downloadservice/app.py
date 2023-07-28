@@ -391,13 +391,17 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    if request.method in ['PUT', 'MKCOL'] and not path.startswith(
-            urljoin_multipart(
-                app.config['CTADS_UPSTREAM_BASEFOLDER'],
-                "users",
-                user_to_path_fragment(user))
-            + "/"):
-        return "Access denied", f"403 Missing rights to write in : {path}"
+    if request.method in ['PUT', 'MKCOL']:
+        required_path_prefix = urljoin_multipart(
+            app.config['CTADS_UPSTREAM_BASEFOLDER'],
+            "users",
+            user_to_path_fragment(user)) + "/"
+
+        if not path.startswith(required_path_prefix):
+            return "Access denied", \
+                f"403 Missing rights to write in : {path}," +\
+                " you are only allowed to write in " + \
+                required_path_prefix
 
     upstream_session = get_upstream_session()
     res = upstream_session.request(

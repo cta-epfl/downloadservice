@@ -1,7 +1,8 @@
-import pytest
-import tempfile
-import os
 from conftest import upstream_webdav_server, hash_file, generate_random_file
+import logging
+import os
+import tempfile
+import pytest
 import ctadata
 
 
@@ -20,34 +21,37 @@ def test_apiclient_list(testing_download_service):
         r = ctadata.list_dir("lst/")
 
         expected = ['lst/', 'lst/users/']
-
-        assert len(r) == 2
-        for entry in r:
-            assert entry['href'] in expected
+        assert set([entry['href'] for entry in r]) == set(expected)
 
 
 @pytest.mark.timeout(30)
 def test_apiclient_fetch(testing_download_service, caplog):
-    with upstream_webdav_server():
+    caplog.set_level(logging.DEBUG)
+    with upstream_webdav_server() as (server_dir, _):
+        remote_file = f"{server_dir}/lst/remote-file"
+        generate_random_file(remote_file, 10 * (1024**2))
+
         ctadata.APIClient.downloadservice = testing_download_service['url']
 
         r = ctadata.list_dir("lst")
 
+        expected = ['lst/', 'lst/users/', 'lst/remote-file']
+        assert set([entry['href'] for entry in r]) == set(expected)
+
         for entry in r:
-            print(entry)
             if entry['type'] == 'file' and int(entry['size']) > 10000:
                 ctadata.fetch_and_save_file(
-                    entry['href'], chunk_size=1024*1024*10)
+                    entry['href'], chunk_size=1024*1024*2)
                 assert 'in 4 chunks' in caplog.text
                 assert 'in 9 chunks' not in caplog.text
+
                 ctadata.fetch_and_save_file(
-                    entry['href'], chunk_size=1024*1024*5)
+                    entry['href'], chunk_size=1024*1024*1)
                 assert 'in 9 chunks' in caplog.text
-                break
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_single_file(testing_download_service, caplog):
+def test_apiclient_upload_single_file(testing_download_service):
     with upstream_webdav_server() as (server_dir, _):
         ctadata.APIClient.downloadservice = testing_download_service['url']
 
@@ -68,7 +72,7 @@ def test_apiclient_upload_single_file(testing_download_service, caplog):
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_invalid_path(testing_download_service, caplog):
+def test_apiclient_upload_invalid_path(testing_download_service):
     with upstream_webdav_server():
         ctadata.APIClient.downloadservice = testing_download_service['url']
 
@@ -81,7 +85,7 @@ def test_apiclient_upload_invalid_path(testing_download_service, caplog):
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_wrong(testing_download_service, caplog):
+def test_apiclient_upload_wrong(testing_download_service):
     with upstream_webdav_server():
         ctadata.APIClient.downloadservice = testing_download_service['url']
 
