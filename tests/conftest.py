@@ -1,19 +1,41 @@
-import os
 import copy
+import hashlib
+import os
+import psutil
+import pytest
 import re
+import signal
 import subprocess
 import tempfile
-from threading import Thread
 import time
-import pytest
-import signal
-import psutil
+from threading import Thread
 
 from contextlib import contextmanager
 from wsgidav.wsgidav_app import WsgiDAVApp
 from cheroot import wsgi
 
 __this_dir__ = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+
+webdav_server_host = "127.0.0.1"
+webdav_server_port = 31102
+
+
+def hash_file(filename):
+    """"Returns the SHA-1 hash of the file provided"""
+    h = hashlib.sha1()
+
+    with open(filename, 'rb') as file:
+        chunk = 0
+        while chunk != b'':
+            chunk = file.read(1024**2)
+            h.update(chunk)
+
+    return h.hexdigest()
+
+
+def generate_random_file(filename, size):
+    with open(filename, 'wb') as fout:
+        fout.write(os.urandom(size))
 
 
 @pytest.fixture(scope="session")
@@ -30,7 +52,8 @@ def app():
             "DEBUG": True,
             "CTADS_CABUNDLE": f"{tmpdir}/cert.pem",
             "CTADS_CLIENTCERT": f"{tmpdir}/cert.pem",
-            'CTADS_UPSTREAM_ENDPOINT': 'http://127.0.0.1:31102/',
+            'CTADS_UPSTREAM_ENDPOINT':
+                f'http://{webdav_server_host}:{str(webdav_server_port)}/',
             'CTADS_UPSTREAM_BASEPATH': '',
             "SERVER_NAME": 'app',
         })
@@ -47,8 +70,8 @@ def webdav_server():
         os.makedirs(path)
 
         config = {
-            "host": "127.0.0.1",
-            "port": 31102,
+            "host": webdav_server_host,
+            "port": webdav_server_port,
             "provider_mapping": {
                 "/": tmpdir,
             },
@@ -107,7 +130,8 @@ def start_service(pytestconfig):
         env['CTADS_CABUNDLE'] = "cabundle.pem"
         env["CTADS_CABUNDLE"] = f"{tmpdir}/cert.pem"
         env["CTADS_CLIENTCERT"] = f"{tmpdir}/cert.pem"
-        env['CTADS_UPSTREAM_ENDPOINT'] = 'http://127.0.0.1:31102/'
+        env['CTADS_UPSTREAM_ENDPOINT'] = \
+            f'http://{webdav_server_host}:{str(webdav_server_port)}/'
         env['CTADS_UPSTREAM_BASEPATH'] = ''
 
         print(("pythonpath", env['PYTHONPATH']))
