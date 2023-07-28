@@ -9,7 +9,10 @@ from conftest import webdav_server, generate_random_file
 def test_webdav4_client_list(start_service):
     with webdav_server():
         client = Client(start_service['url'] + "/webdav/lst")
-        client.ls("", detail=True)
+        res = client.ls("", detail=True)
+        assert len(res) == 1
+        assert res[0]['href'] == "/webdav/lst/users/"
+        assert res[0]['type'] == "directory"
 
 
 @pytest.mark.timeout(30)
@@ -22,11 +25,15 @@ def test_webdav4_client_upload_denied(start_service):
             generate_random_file(local_file, 1*(1024**2))
 
             with pytest.raises(HTTPError):
-                client.upload_file(
-                    local_file,
-                    'uploaded-file',
-                    chunk_size=1024**2,
-                )
+                try:
+                    client.upload_file(
+                        local_file,
+                        'uploaded-file',
+                        chunk_size=1024**2,
+                    )
+                except HTTPError as e:
+                    assert "Missing rights to write in" in e.__str__()
+                    raise e
 
 
 @pytest.mark.timeout(30)

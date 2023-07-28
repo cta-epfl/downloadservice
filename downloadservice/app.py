@@ -397,7 +397,7 @@ def webdav(user, path):
                 "users",
                 user_to_path_fragment(user))
             + "/"):
-        return "Access denied for : " + path, 403
+        return "Access denied", f"403 Missing rights to write in : {path}"
 
     upstream_session = get_upstream_session()
     res = upstream_session.request(

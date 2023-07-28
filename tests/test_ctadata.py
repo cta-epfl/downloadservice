@@ -14,23 +14,15 @@ def test_apiclient_list(start_service):
         ctadata.APIClient.downloadservice = start_service['url']
 
         with pytest.raises(ctadata.api.StorageException):
-            ctadata.list_dir("blablabalfake")
+            ctadata.list_dir("fake-temp")
 
-        r = ctadata.list_dir("lst")
+        r = ctadata.list_dir("lst/")
 
-        n_dir = 0
-        n_file = 0
+        expected = ['lst/', 'lst/users/']
 
+        assert len(r) == 2
         for entry in r:
-            print(entry)
-            if entry['type'] == 'directory':
-                n_dir += 1
-                print(ctadata.list_dir(entry['href']))
-            else:
-                n_file += 1
-
-            if n_dir > 2 and n_file > 3:
-                break
+            assert entry['href'] in expected
 
 
 @pytest.mark.timeout(30)
