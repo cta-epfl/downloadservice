@@ -15,7 +15,7 @@ def test_webdav4_client_list(testing_download_service):
 
 
 @pytest.mark.timeout(30)
-def test_webdav4_client_upload_denied(testing_download_service):
+def test_webdav4_client_upload_denied_1(testing_download_service):
     with upstream_webdav_server():
         client = Client(testing_download_service['url'] + "/webdav/lst")
 
@@ -33,6 +33,30 @@ def test_webdav4_client_upload_denied(testing_download_service):
                     assert "received 403 (Missing rights to write in : " +\
                         f"lst/{remote_file}, you are only allowed to write " +\
                         "in lst/users/anonymous/)" == \
+                        e.__str__()
+                    raise e
+
+
+@pytest.mark.timeout(30)
+def test_webdav4_client_upload_denied_2(testing_download_service):
+    with upstream_webdav_server():
+        client = Client(testing_download_service['url'] + "/webdav/lst")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            local_file = f"{tmpdir}/local-file"
+            generate_random_file(local_file, 1*(1024**2))
+
+            with pytest.raises(HTTPError):
+                remote_file = "users/anonymous/../test"
+                parsed_remote_file = "users/test"
+                try:
+                    client.upload_file(
+                        local_file, remote_file, chunk_size=1024**2)
+                except HTTPError as e:
+                    print(e.__str__())
+                    assert "received 403 (Missing rights to write in : " +\
+                        f"lst/{parsed_remote_file}, you are only allowed to" +\
+                        " write in lst/users/anonymous/)" == \
                         e.__str__()
                     raise e
 

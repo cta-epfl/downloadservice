@@ -391,7 +391,7 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    if request.method in ['PUT', 'MKCOL', 'PROPPATCH']:
+    if request.method not in ['GET', 'HEAD', 'OPTIONS', 'PROPFIND', 'TRACE']:
         required_path_prefix = urljoin_multipart(
             app.config['CTADS_UPSTREAM_BASEFOLDER'],
             "users",
