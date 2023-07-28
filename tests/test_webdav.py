@@ -71,6 +71,7 @@ def test_webdav4_client_upload_valid(testing_download_service):
             generate_random_file(local_file, 100*(1024**2))
 
             remote_ressource = 'users/anonymous/uploaded-file'
+            # TODO: Add a test to ensure that large uploaded file are chunked
             client.upload_file(local_file, remote_ressource,
                                chunk_size=1024**2)
 
