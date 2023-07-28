@@ -1,17 +1,18 @@
 import pytest
 import tempfile
-
-from conftest import webdav_server, hash_file, generate_random_file
+import os
+from conftest import upstream_webdav_server, hash_file, generate_random_file
 import ctadata
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_list(start_service):
-    with webdav_server():
-        r = ctadata.list_dir("", downloadservice=start_service['url'])
+def test_apiclient_list(testing_download_service):
+    with upstream_webdav_server():
+        r = ctadata.list_dir(
+            "", downloadservice=testing_download_service['url'])
         print(r)
 
-        ctadata.APIClient.downloadservice = start_service['url']
+        ctadata.APIClient.downloadservice = testing_download_service['url']
 
         with pytest.raises(ctadata.api.StorageException):
             ctadata.list_dir("fake-temp")
@@ -26,9 +27,9 @@ def test_apiclient_list(start_service):
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_fetch(start_service, caplog):
-    with webdav_server():
-        ctadata.APIClient.downloadservice = start_service['url']
+def test_apiclient_fetch(testing_download_service, caplog):
+    with upstream_webdav_server():
+        ctadata.APIClient.downloadservice = testing_download_service['url']
 
         r = ctadata.list_dir("lst")
 
@@ -46,26 +47,30 @@ def test_apiclient_fetch(start_service, caplog):
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_single_file(start_service, caplog):
-    with webdav_server():
-        ctadata.APIClient.downloadservice = start_service['url']
+def test_apiclient_upload_single_file(testing_download_service, caplog):
+    with upstream_webdav_server() as (server_dir, _):
+        ctadata.APIClient.downloadservice = testing_download_service['url']
 
         with tempfile.TemporaryDirectory() as tmpdir:
             origin_file = f"{tmpdir}/local-file"
             generate_random_file(origin_file, 100 * (1024**2))
 
-            r = ctadata.upload_file(origin_file, 'example-files/example-file')
+            remote_path = 'example-files/example-file'
+            r = ctadata.upload_file(origin_file, remote_path)
 
             restored_file = f"{tmpdir}/restored-file"
             ctadata.fetch_and_save_file(r['path'], restored_file)
 
             assert hash_file(origin_file) == hash_file(restored_file)
 
+            remote_file = f"{server_dir}/lst/users/anonymous/{remote_path}"
+            assert os.path.isfile(remote_file)
+
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_invalid_path(start_service, caplog):
-    with webdav_server():
-        ctadata.APIClient.downloadservice = start_service['url']
+def test_apiclient_upload_invalid_path(testing_download_service, caplog):
+    with upstream_webdav_server():
+        ctadata.APIClient.downloadservice = testing_download_service['url']
 
         with tempfile.TemporaryDirectory() as tmpdir:
             origin_file = f"{tmpdir}/local-file"
@@ -76,9 +81,9 @@ def test_apiclient_upload_invalid_path(start_service, caplog):
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_wrong(start_service, caplog):
-    with webdav_server():
-        ctadata.APIClient.downloadservice = start_service['url']
+def test_apiclient_upload_wrong(testing_download_service, caplog):
+    with upstream_webdav_server():
+        ctadata.APIClient.downloadservice = testing_download_service['url']
 
         with tempfile.TemporaryDirectory() as tmpdir:
             local_file = f"{tmpdir}/local-file-example"
@@ -90,9 +95,9 @@ def test_apiclient_upload_wrong(start_service, caplog):
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_dir(start_service):
-    with webdav_server():
-        ctadata.APIClient.downloadservice = start_service['url']
+def test_apiclient_upload_dir(testing_download_service):
+    with upstream_webdav_server():
+        ctadata.APIClient.downloadservice = testing_download_service['url']
 
         with tempfile.TemporaryDirectory() as tmpdir:
             for i in range(10):

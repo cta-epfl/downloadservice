@@ -62,7 +62,7 @@ def app():
 
 
 @contextmanager
-def webdav_server():
+def upstream_webdav_server():
     """Set up and tear down a Cheroot server instance."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -97,7 +97,7 @@ def webdav_server():
         httpserver.shutdown_timeout = 0  # Speed-up tests teardown
 
         with httpserver._run_in_thread() as thread:
-            yield locals()
+            yield tmpdir, locals()
 
 
 def kill_child_processes(parent_pid, sig=signal.SIGINT):
@@ -111,7 +111,7 @@ def kill_child_processes(parent_pid, sig=signal.SIGINT):
 
 
 @pytest.fixture
-def start_service(pytestconfig):
+def testing_download_service(pytestconfig):
     with tempfile.TemporaryDirectory() as tmpdir:
 
         os.system(f"openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
