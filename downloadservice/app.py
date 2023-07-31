@@ -418,7 +418,9 @@ def webdav(user, path):
     # Exclude all "hop-by-hop headers" defined by RFC 2616
     # section 13.5.1 ref. https://www.rfc-editor.org/rfc/rfc2616#section-13.5.1
     excluded_headers = ['content-encoding', 'content-length',
-                        'transfer-encoding', 'connection']
+                        'transfer-encoding', 'connection', 'keep-alive',
+                        'proxy-authenticate', 'proxy-authorization', 'te',
+                        'trailers', 'upgrade']
     headers = [
         (k, v) for k, v in res.raw.headers.items()
         if k.lower() not in excluded_headers
