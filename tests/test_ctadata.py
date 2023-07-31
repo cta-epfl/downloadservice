@@ -30,6 +30,7 @@ def test_apiclient_fetch(testing_download_service, caplog):
     with upstream_webdav_server() as (server_dir, _):
         remote_file = f"{server_dir}/lst/remote-file"
         generate_random_file(remote_file, 10 * (1024**2))
+        hash_remote_file = hash_file(remote_file)
 
         ctadata.APIClient.downloadservice = testing_download_service['url']
 
@@ -41,16 +42,20 @@ def test_apiclient_fetch(testing_download_service, caplog):
         with tempfile.TemporaryDirectory() as tmpdir:
             for entry in r:
                 if entry['type'] == 'file' and int(entry['size']) > 10000:
+                    local_filename_1 = f"{tmpdir}/local-copy-1"
                     ctadata.fetch_and_save_file(
                         entry['href'], chunk_size=1024*1024*2,
-                        save_to_fn=F"{tmpdir}/local-copy-1")
+                        save_to_fn=local_filename_1)
                     assert 'in 4 chunks' in caplog.text
                     assert 'in 9 chunks' not in caplog.text
+                    assert hash_remote_file == hash_file(local_filename_1)
 
+                    local_filename_2 = f"{tmpdir}/local-copy-2"
                     ctadata.fetch_and_save_file(
                         entry['href'], chunk_size=1024*1024*1,
-                        save_to_fn=F"{tmpdir}/local-copy-2")
+                        save_to_fn=local_filename_2)
                     assert 'in 9 chunks' in caplog.text
+                    assert hash_remote_file == hash_file(local_filename_2)
 
 
 @pytest.mark.timeout(30)
