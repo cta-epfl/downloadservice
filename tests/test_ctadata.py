@@ -38,16 +38,19 @@ def test_apiclient_fetch(testing_download_service, caplog):
         expected = ['lst/', 'lst/users/', 'lst/remote-file']
         assert set([entry['href'] for entry in r]) == set(expected)
 
-        for entry in r:
-            if entry['type'] == 'file' and int(entry['size']) > 10000:
-                ctadata.fetch_and_save_file(
-                    entry['href'], chunk_size=1024*1024*2)
-                assert 'in 4 chunks' in caplog.text
-                assert 'in 9 chunks' not in caplog.text
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for entry in r:
+                if entry['type'] == 'file' and int(entry['size']) > 10000:
+                    ctadata.fetch_and_save_file(
+                        entry['href'], chunk_size=1024*1024*2,
+                        save_to_fn=F"{tmpdir}/local-copy-1")
+                    assert 'in 4 chunks' in caplog.text
+                    assert 'in 9 chunks' not in caplog.text
 
-                ctadata.fetch_and_save_file(
-                    entry['href'], chunk_size=1024*1024*1)
-                assert 'in 9 chunks' in caplog.text
+                    ctadata.fetch_and_save_file(
+                        entry['href'], chunk_size=1024*1024*1,
+                        save_to_fn=F"{tmpdir}/local-copy-2")
+                    assert 'in 9 chunks' in caplog.text
 
 
 @pytest.mark.timeout(30)
