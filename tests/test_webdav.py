@@ -27,7 +27,7 @@ def test_webdav4_client_upload_denied_1(testing_download_service):
                 remote_file = "upload-file"
                 try:
                     client.upload_file(
-                        local_file, remote_file, chunk_size=1024**2)
+                        local_file, remote_file)
                 except HTTPError as e:
                     print(e.__str__())
                     assert "received 403 (Missing rights to write in : " +\
@@ -51,7 +51,7 @@ def test_webdav4_client_upload_denied_2(testing_download_service):
                 parsed_remote_file = "users/test"
                 try:
                     client.upload_file(
-                        local_file, remote_file, chunk_size=1024**2)
+                        local_file, remote_file)
                 except HTTPError as e:
                     print(e.__str__())
                     assert "received 403 (Missing rights to write in : " +\
@@ -71,9 +71,7 @@ def test_webdav4_client_upload_valid(testing_download_service):
             generate_random_file(local_file, 100*(1024**2))
 
             remote_ressource = 'users/anonymous/uploaded-file'
-            # TODO: Add a test to ensure that large uploaded file are chunked
-            client.upload_file(local_file, remote_ressource,
-                               chunk_size=1024**2)
+            client.upload_file(local_file, remote_ressource)
 
             remote_file = f"{server_dir}/lst/{remote_ressource}"
             assert hash_file(local_file) == hash_file(remote_file)

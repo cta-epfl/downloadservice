@@ -383,14 +383,6 @@ def webdav(user, path):
         app.config['CTADS_UPSTREAM_BASEPATH'],
     )
 
-    def is_chunked():
-        return request.headers.get('transfer-encoding', '').lower() \
-            == 'chunked'
-
-    def request_datastream():
-        while (buf := request.stream.read(default_chunk_size)) != b'':
-            yield buf
-
     if request.method not in ['GET', 'HEAD', 'OPTIONS', 'PROPFIND', 'TRACE']:
         required_path_prefix = urljoin_multipart(
             app.config['CTADS_UPSTREAM_BASEFOLDER'],
@@ -403,24 +395,30 @@ def webdav(user, path):
                 " you are only allowed to write in " + \
                 required_path_prefix
 
-    upstream_session = get_upstream_session()
-    res = upstream_session.request(
-        method=request.method,
-        url=urljoin_multipart(API_HOST, path),
-        # exclude 'host' and 'authorization' header
-        headers={k: v for k, v in request.headers
-                 if k.lower() not in ['host', 'authorization']},
-        data=request_datastream() if is_chunked() else request.get_data(),
-        cookies=request.cookies,
-        allow_redirects=False,
-    )
-
     # Exclude all "hop-by-hop headers" defined by RFC 2616
     # section 13.5.1 ref. https://www.rfc-editor.org/rfc/rfc2616#section-13.5.1
     excluded_headers = ['content-encoding', 'content-length',
                         'transfer-encoding', 'connection', 'keep-alive',
                         'proxy-authenticate', 'proxy-authorization', 'te',
                         'trailers', 'upgrade']
+
+    def request_datastream():
+        while (buf := request.stream.read(default_chunk_size)) != b'':
+            yield buf
+
+    upstream_session = get_upstream_session()
+    res = upstream_session.request(
+        method=request.method,
+        url=urljoin_multipart(API_HOST, path),
+        # exclude 'host' and 'authorization' header
+        headers={k: v for k, v in request.headers
+                 if k.lower() not in ['host', 'authorization'] and
+                 k.lower() not in excluded_headers},
+        data=request_datastream(),
+        cookies=request.cookies,
+        allow_redirects=False,
+    )
+
     headers = [
         (k, v) for k, v in res.raw.headers.items()
         if k.lower() not in excluded_headers

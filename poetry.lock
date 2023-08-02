@@ -1572,12 +1572,14 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "webdav4"
-version = "0.1.dev226+gff72f8d"
+version = "0.9.8"
 description = "WebDAV client library with an fsspec-based filesystem and a CLI"
 optional = false
-python-versions = ">=3.8"
-files = []
-develop = false
+python-versions = ">=3.7"
+files = [
+    {file = "webdav4-0.9.8-py3-none-any.whl", hash = "sha256:3ad1d5912401861d9ca3f03600b79ad35a135ff15a707ccf6df78db6d369ad0a"},
+    {file = "webdav4-0.9.8.tar.gz", hash = "sha256:fc7748df33a375de13ddb5f4594f5799f9f3dc13c005b7b9c45c120aad745694"},
+]
 
 [package.dependencies]
 httpx = ">=0.20,<1.0.0"
@@ -1586,17 +1588,11 @@ python-dateutil = ">=2.8.1"
 [package.extras]
 all = ["webdav4[fsspec,http2]"]
 dev = ["webdav4[docs,fsspec,http2,qa,tests]"]
-docs = ["furo (==2022.12.7)", "myst-parser (==0.18.1)", "sphinx (==5.3)", "sphinx-copybutton (==0.5.1)"]
+docs = ["furo (==2022.9.29)", "myst-parser (==0.18.1)", "sphinx (==5.3)", "sphinx-copybutton (==0.5)"]
 fsspec = ["fsspec (>=2021.7)"]
 http2 = ["httpx[http2] (>=0.20,<1.0.0)"]
-qa = ["mypy (==1.0.1)", "pre-commit", "pylint (==2.16.2)", "types-colorama", "types-pkg-resources", "types-python-dateutil"]
+qa = ["mypy (==0.982)", "pre-commit", "pylint (==2.15.5)", "pylint-pytest (==1.1.2)", "types-pkg-resources", "types-python-dateutil"]
 tests = ["cheroot", "colorama", "pytest", "pytest-cov", "pytest-xdist", "typing-extensions", "wsgidav"]
-
-[package.source]
-type = "git"
-url = "https://github.com/Ph0tonic/webdav4.git"
-reference = "main"
-resolved_reference = "ff72f8d0dfac1fe1334a4af36c013e214cae26e1"
 
 [[package]]
 name = "werkzeug"
@@ -1668,4 +1664,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "f9fcbd03f4df90565492610e3ae1dd39c3b05d3780bd8adb8e57ab7d224317f6"
+content-hash = "dfe55993e72c2e75b20912483c67fd0fffc11dc0cea0dddf6db9de1347489397"
