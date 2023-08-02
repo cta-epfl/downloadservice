@@ -25,9 +25,7 @@ def hash_file(filename):
     h = hashlib.sha1()
 
     with open(filename, 'rb') as file:
-        chunk = 0
-        while chunk != b'':
-            chunk = file.read(1024**2)
+        while (chunk := file.read(1024**2)) != b'':
             h.update(chunk)
 
     return h.hexdigest()
