@@ -20,6 +20,12 @@ optional = true
 ctadata = "^0.2.6"
 pytest = "^7.3.2"
 psutil = "^5.9.5"
+pytest-flask = "^1.2.0"
+pytest-timeout = "^2.1.0"
+cheroot = "^10.0.0"
+xmltodict = "^0.13.0"
+webdav4 = "^0.9.8"
+wsgidav = { git="https://github.com/Ph0tonic/wsgidav.git", branch="fix_chunk_stream" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

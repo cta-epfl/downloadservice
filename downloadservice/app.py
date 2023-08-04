@@ -60,14 +60,21 @@ def create_app():
     app.config['OIDC_COOKIE_SECURE'] = False
     app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
     app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
-    app.config['CTADS_CABUNDLE'] = os.environ.get(
-        'CTADS_CABUNDLE', '/etc/cabundle.pem')
-    app.config['CTADS_CLIENTCERT'] = os.environ.get(
-        'CTADS_CLIENTCERT', '/tmp/x509up_u1000')
-    app.config['CTADS_DISABLE_ALL_AUTH'] = os.getenv(
-        'CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
-    app.config['CTADS_UPSTREAM_ENDPOINT'] = "https://dcache.cta.cscs.ch:2880/"
-    app.config['CTADS_UPSTREAM_BASEPATH'] = "pnfs/cta.cscs.ch/"
+    app.config['CTADS_CABUNDLE'] = \
+        os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
+    app.config['CTADS_CLIENTCERT'] = \
+        os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
+    app.config['CTADS_DISABLE_ALL_AUTH'] = \
+        os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
+    app.config['CTADS_UPSTREAM_ENDPOINT'] = \
+        os.getenv('CTADS_UPSTREAM_ENDPOINT',
+                  "https://dcache.cta.cscs.ch:2880/")
+    app.config['CTADS_UPSTREAM_BASEPATH'] = \
+        os.getenv('CTADS_UPSTREAM_BASEPATH', "pnfs/cta.cscs.ch/")
+    app.config['CTADS_UPSTREAM_BASEPATH'] = \
+        os.getenv('CTADS_UPSTREAM_BASEPATH', "pnfs/cta.cscs.ch/")
+    app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
+        os.getenv('CTADS_UPSTREAM_BASEFOLDER', "lst")
 
     return app
 
@@ -148,13 +155,14 @@ def get_upstream_session():
 
 @app.route(url_prefix + "/health")
 def health():
-    url = app.config['CTADS_UPSTREAM_ENDPOINT'] + "pnfs/cta.cscs.ch/lst"
+    url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
+        app.config['CTADS_UPSTREAM_BASEPATH'] + \
+        app.config['CTADS_UPSTREAM_BASEFOLDER']
 
     upstream_session = get_upstream_session()
-
     try:
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
-                                     timeout=5)
+                                     timeout=10)
         if r.status_code in [200, 207]:
             return "OK", 200
         else:
@@ -169,7 +177,7 @@ def health():
 # @oidc.accept_token(require_token=True)
 
 @app.route(url_prefix + '/list', methods=["GET", "POST"],
-           defaults={'path': None})
+           defaults={'path': ''})
 @app.route(url_prefix + '/list/<path:path>', methods=["GET", "POST"])
 @authenticated
 def list(user, path):
@@ -189,7 +197,6 @@ def list(user, path):
     if r.status_code not in [200, 207]:
         return f"Error: {r.status_code} {r.content.decode()}", r.status_code
 
-    logger.debug("request headers: %s", r.request.headers)
     logger.debug("response: %s", r.content.decode())
 
     try:
@@ -223,6 +230,7 @@ def list(user, path):
         up = urlparse(request.url)
         entry['href'] = re.sub(
             '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
+
         entry['url'] = "/".join([
             up.scheme + ":/", up.netloc,
             re.sub(path, '', up.path), entry['href']
@@ -238,7 +246,7 @@ def list(user, path):
 
 
 @app.route(url_prefix + '/fetch', methods=["GET", "POST"],
-           defaults={'path': None})
+           defaults={'path': ''})
 @app.route(url_prefix + '/fetch/<path:path>', methods=["GET", "POST"])
 @authenticated
 def fetch(user, path):
@@ -248,6 +256,7 @@ def fetch(user, path):
     url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'],
                             app.config['CTADS_UPSTREAM_BASEPATH'],
                             (path or ""))
+
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
     logger.info("fetching upstream url %s", url)
@@ -283,7 +292,9 @@ def upload(user, path):
         return "Error: path cannot contain '..'", 400
 
     upload_base_path = urljoin_multipart(
-        "lst/users", user_to_path_fragment(user))
+        app.config['CTADS_UPSTREAM_BASEFOLDER'],
+        "users",
+        user_to_path_fragment(user))
     upload_path = urljoin_multipart(upload_base_path, path)
 
     baseurl = urljoin_multipart(
@@ -299,6 +310,7 @@ def upload(user, path):
     logger.info("uploading to path %s", path)
     logger.info("uploading to base upstream url %s", baseurl)
     logger.info("uploading to upstream url %s", url)
+    logger.info("uploading chunk size %s", chunk_size)
 
     upstream_session = get_upstream_session()
 
@@ -353,3 +365,81 @@ def oauth_callback():
     next_url = auth.get_next_url(cookie_state) or url_prefix
     response = make_response(redirect(next_url))
     return response
+
+
+webdav_methods = ['GET', 'HEAD',  'MKCOL', 'OPTIONS',
+                  'PROPFIND', 'PROPPATCH', 'PUT', 'TRACE',
+                  # 'LOCK', 'UNLOCK', 'POST', 'DELETE', 'MOVE',
+                  ]
+
+
+@app.route(url_prefix + "/webdav", defaults={'path': ''},
+           methods=webdav_methods)
+@app.route(url_prefix + "/webdav/<path:path>", methods=webdav_methods)
+@authenticated
+def webdav(user, path):
+    API_HOST = urljoin_multipart(
+        app.config['CTADS_UPSTREAM_ENDPOINT'],
+        app.config['CTADS_UPSTREAM_BASEPATH'],
+    )
+
+    if request.method not in ['GET', 'HEAD', 'OPTIONS', 'PROPFIND', 'TRACE']:
+        required_path_prefix = urljoin_multipart(
+            app.config['CTADS_UPSTREAM_BASEFOLDER'],
+            "users",
+            user_to_path_fragment(user)) + "/"
+
+        if not path.startswith(required_path_prefix):
+            return "Access denied", \
+                f"403 Missing rights to write in : {path}," +\
+                " you are only allowed to write in " + \
+                required_path_prefix
+
+    # Exclude all "hop-by-hop headers" defined by RFC 2616
+    # section 13.5.1 ref. https://www.rfc-editor.org/rfc/rfc2616#section-13.5.1
+    excluded_headers = ['content-encoding', 'content-length',
+                        'transfer-encoding', 'connection', 'keep-alive',
+                        'proxy-authenticate', 'proxy-authorization', 'te',
+                        'trailers', 'upgrade']
+
+    def request_datastream():
+        while (buf := request.stream.read(default_chunk_size)) != b'':
+            yield buf
+
+    upstream_session = get_upstream_session()
+    res = upstream_session.request(
+        method=request.method,
+        url=urljoin_multipart(API_HOST, path),
+        # exclude 'host' and 'authorization' header
+        headers={k: v for k, v in request.headers
+                 if k.lower() not in ['host', 'authorization'] and
+                 k.lower() not in excluded_headers},
+        data=request_datastream(),
+        cookies=request.cookies,
+        allow_redirects=False,
+    )
+
+    headers = [
+        (k, v) for k, v in res.raw.headers.items()
+        if k.lower() not in excluded_headers
+    ]
+
+    endpoint_prefix = url_prefix+"/webdav"
+
+    def is_prop_method():
+        return request.method in ['PROPFIND', 'PROPPATCH']
+
+    def prop_content():
+        return res.content\
+            .replace(
+                (":href>/" +
+                 app.config['CTADS_UPSTREAM_BASEFOLDER'] + "/").encode(),
+                (":href>"+endpoint_prefix+"/" +
+                 app.config['CTADS_UPSTREAM_BASEFOLDER']+"/").encode()
+            )
+
+    return Response(
+        prop_content() if is_prop_method else res.content,
+        res.status_code,
+        headers
+    )
