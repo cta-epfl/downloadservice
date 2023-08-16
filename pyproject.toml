@@ -72,7 +72,7 @@ tag_template = "v{new_version}"
 # tbump.toml location.
 [[tool.tbump.file]]
 src = "downloadservice/app.py"
-search = "__version__ = {current_version}"
+search = '__version__ = "{current_version}"'
 
 [[tool.tbump.file]]
 src = "pyproject.toml"
