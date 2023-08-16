@@ -31,8 +31,8 @@ sentry_sdk.init(
     # We recommend adjusting this value in production.
     traces_sample_rate=1.0,
 
-    release=os.environ.get('DOWNLOAD_SERVICE_RELEASE', __version__),
-    environment=os.environ.get('DOWNLOAD_SERVICE_ENVIRONMENT', 'dev'),
+    release='downloadservice:' + __version__,
+    environment=os.environ.get('SENTRY_ENVIRONMENT', 'dev'),
 )
 
 # from flask_oidc import OpenIDConnect
