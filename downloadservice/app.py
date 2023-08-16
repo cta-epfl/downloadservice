@@ -14,12 +14,14 @@ from flask import (
     session, stream_with_context, render_template
 )
 
+import logging
+
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 sentry_sdk.init(
-    dsn="https://452458c2a6630292629364221bff0dee@o4505709665976320.ingest."+\
-        "sentry.io/4505709666762752",
+    dsn="https://452458c2a6630292629364221bff0dee@o4505709665976320" + \
+        ".ingest.sentry.io/4505709666762752",
     integrations=[
         FlaskIntegration(),
     ],
@@ -34,9 +36,6 @@ sentry_sdk.init(
 )
 
 # from flask_oidc import OpenIDConnect
-
-import logging
-
 logger = logging.getLogger(__name__)
 
 
@@ -47,6 +46,7 @@ def urljoin_multipart(*args):
         [arg.strip("/")
          for arg in args if arg is not None and arg.strip("/") != ""]
     )
+
 
 try:
     from jupyterhub.services.auth import HubOAuth
