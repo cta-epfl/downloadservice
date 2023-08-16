@@ -12,6 +12,21 @@ from flask import (
     session, stream_with_context, render_template
 )
 
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
+
+sentry_sdk.init(
+    dsn="https://452458c2a6630292629364221bff0dee@o4505709665976320.ingest.sentry.io/4505709666762752",
+    integrations=[
+        FlaskIntegration(),
+    ],
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production.
+    traces_sample_rate=1.0
+)
+
 # from flask_oidc import OpenIDConnect
 
 import logging
@@ -26,12 +41,6 @@ def urljoin_multipart(*args):
         [arg.strip("/")
          for arg in args if arg is not None and arg.strip("/") != ""]
     )
-
-
-try:
-    import gfal2
-except ImportError:
-    gfal2 = None
 
 try:
     from jupyterhub.services.auth import HubOAuth
