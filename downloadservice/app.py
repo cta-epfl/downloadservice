@@ -406,9 +406,9 @@ def webdav(user, path):
 
         if not path.startswith(required_path_prefix):
             return 'Access denied', \
-                f'403 Missing rights to write in : {path}, \
-                you are only allowed to write in \
-                {required_path_prefix}'
+                f'403 Missing rights to write in : {path}, ' + \
+                'you are only allowed to write in ' + \
+                required_path_prefix
 
     # Exclude all "hop-by-hop headers" defined by RFC 2616
     # section 13.5.1 ref. https://www.rfc-editor.org/rfc/rfc2616#section-13.5.1
