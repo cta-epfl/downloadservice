@@ -71,7 +71,7 @@ tag_template = "v{new_version}"
 # section containing the path of the file, relative to the
 # tbump.toml location.
 [[tool.tbump.file]]
-src = "downloadservice/app.py"
+src = "downloadservice/__init__.py"
 search = '__version__ = "{current_version}"'
 
 [[tool.tbump.file]]
