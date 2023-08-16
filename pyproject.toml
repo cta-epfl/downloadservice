@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "downloadservice"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 authors = ["Volodymyr Savchenko <contact@volodymyrsavchenko.com>"]
 
@@ -28,9 +28,70 @@ xmltodict = "^0.13.0"
 webdav4 = "^0.9.8"
 wsgidav = { git="https://github.com/Ph0tonic/wsgidav.git", branch="fix_chunk_stream" }
 
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+tbump = "^6.10.0"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 downloadservice = { callable = "downloadservice.cli:main" }
+
+[tool.tbump]
+# Uncomment this if your project is hosted on GitHub:
+# github_url = "https://github.com/cta-epfl/downloadservice/"
+
+[tool.tbump.version]
+current = "0.2.0"
+
+# Example of a semver regexp.
+# Make sure this matches current_version before
+# using tbump
+regex = '''
+  (?P<major>\d+)
+  \.
+  (?P<minor>\d+)
+  \.
+  (?P<patch>\d+)
+  (\-
+    (?P<extra>.+)
+  )?
+  '''
+
+[tool.tbump.git]
+message_template = "Bump to {new_version}"
+tag_template = "v{new_version}"
+
+# For each file to patch, add a [[tool.tbump.file]] config
+# section containing the path of the file, relative to the
+# tbump.toml location.
+[[tool.tbump.file]]
+src = "downloadservice/app.py"
+search = "__version__ = {current_version}"
+
+[[tool.tbump.file]]
+src = "pyproject.toml"
+search = "version = {current_version}"
+
+[[tool.tbump.field]]
+name = "extra"
+default = ""
+
+# You can specify a list of commands to
+# run after the files have been patched
+# and before the git commit is made
+
+#  [[tool.tbump.before_commit]]
+#  name = "check changelog"
+#  cmd = "grep -q {new_version} Changelog.rst"
+
+# Or run some commands after the git tag and the branch
+# have been pushed:
+#  [[tool.tbump.after_push]]
+#  name = "publish"
+#  cmd = "./publish.sh"

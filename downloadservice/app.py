@@ -15,6 +15,8 @@ from flask import (
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
+__version__ = "0.2.0"
+
 sentry_sdk.init(
     dsn="https://452458c2a6630292629364221bff0dee@o4505709665976320.ingest.sentry.io/4505709666762752",
     integrations=[
@@ -26,7 +28,7 @@ sentry_sdk.init(
     # We recommend adjusting this value in production.
     traces_sample_rate=1.0,
 
-    release=os.environ.get('DOWNLOAD_SERVICE_RELEASE', 'v0.0.1-dev')
+    release=os.environ.get('DOWNLOAD_SERVICE_RELEASE', __version__)
     environment=os.environ.get('DOWNLOAD_SERVICE_ENVIRONMENT', 'dev')
 )
 
