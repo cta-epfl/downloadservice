@@ -15,7 +15,7 @@ from flask import (
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 sentry_sdk.init(
     dsn="https://452458c2a6630292629364221bff0dee@o4505709665976320.ingest.sentry.io/4505709666762752",

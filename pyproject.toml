@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "downloadservice"
-version = "0.2.0"
+version = "0.3.0"
 description = ""
 authors = ["Volodymyr Savchenko <contact@volodymyrsavchenko.com>"]
 
@@ -47,7 +47,7 @@ downloadservice = { callable = "downloadservice.cli:main" }
 # github_url = "https://github.com/cta-epfl/downloadservice/"
 
 [tool.tbump.version]
-current = "0.2.0"
+current = "0.3.0"
 
 # Example of a semver regexp.
 # Make sure this matches current_version before
