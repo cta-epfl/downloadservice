@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import requests
 import secrets
 import xml.etree.ElementTree as ET
+import importlib.metadata
 
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,
