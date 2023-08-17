@@ -1,5 +1,3 @@
-__version__ = "0.3.0"
-
 from functools import wraps
 import os
 import io
@@ -31,7 +29,7 @@ sentry_sdk.init(
     # We recommend adjusting this value in production.
     traces_sample_rate=1.0,
 
-    release='downloadservice:' + __version__,
+    release='downloadservice:' + importlib.metadata.version("downloadservice"),
     environment=os.environ.get('SENTRY_ENVIRONMENT', 'dev'),
 )
 
