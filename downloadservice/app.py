@@ -365,14 +365,14 @@ def upload(user, path):
 def oauth_callback():
     code = request.args.get('code', None)
     if code is None:
-        return 403
+        return 'Error: oauth callback code', 403
 
     # validate state field
     arg_state = request.args.get('state', None)
     cookie_state = request.cookies.get(auth.state_cookie_name)
     if arg_state is None or arg_state != cookie_state:
         # state doesn't match
-        return 403
+        return 'Error: oauth callback invalid state', 403
 
     token = auth.token_for_code(code)
     # store token in session cookie
