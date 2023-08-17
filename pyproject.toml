@@ -29,12 +29,6 @@ xmltodict = "^0.13.0"
 webdav4 = "^0.9.8"
 wsgidav = { git="https://github.com/Ph0tonic/wsgidav.git", branch="fix_chunk_stream" }
 
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-tbump = "^6.10.0"
-
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
