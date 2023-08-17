@@ -6,45 +6,59 @@ from urllib.parse import urlparse
 import requests
 import secrets
 import xml.etree.ElementTree as ET
+import importlib.metadata
 
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,
     session, stream_with_context, render_template
 )
 
-# from flask_oidc import OpenIDConnect
-
 import logging
 
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
+
+sentry_sdk.init(
+    dsn='https://452458c2a6630292629364221bff0dee@o4505709665976320\
+        .ingest.sentry.io/4505709666762752',
+    integrations=[
+        FlaskIntegration(),
+    ],
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production.
+    traces_sample_rate=1.0,
+
+    release='downloadservice:' + importlib.metadata.version("downloadservice"),
+    environment=os.environ.get('SENTRY_ENVIRONMENT', 'dev'),
+)
+
+# from flask_oidc import OpenIDConnect
 logger = logging.getLogger(__name__)
 
 
 def urljoin_multipart(*args):
     """Join multiple parts of a URL together, ignoring empty parts."""
-    logger.info("urljoin_multipart: %s", args)
-    return "/".join(
-        [arg.strip("/")
-         for arg in args if arg is not None and arg.strip("/") != ""]
+    logger.info('urljoin_multipart: %s', args)
+    return '/'.join(
+        [arg.strip('/')
+         for arg in args if arg is not None and arg.strip('/') != '']
     )
 
-
-try:
-    import gfal2
-except ImportError:
-    gfal2 = None
 
 try:
     from jupyterhub.services.auth import HubOAuth
     auth = HubOAuth(
         api_token=os.environ['JUPYTERHUB_API_TOKEN'], cache_max_age=60)
 except Exception:
-    logger.warning("Auth system not configured")
+    logger.warning('Auth system not configured')
     auth = None
 
 bp = Blueprint('downloadservice', __name__,
                template_folder='templates')
 
-url_prefix = os.getenv("JUPYTERHUB_SERVICE_PREFIX", "").rstrip("/")
+url_prefix = os.getenv('JUPYTERHUB_SERVICE_PREFIX', '').rstrip('/')
 
 default_chunk_size = 10 * 1024 * 1024
 
@@ -68,13 +82,13 @@ def create_app():
         os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
     app.config['CTADS_UPSTREAM_ENDPOINT'] = \
         os.getenv('CTADS_UPSTREAM_ENDPOINT',
-                  "https://dcache.cta.cscs.ch:2880/")
+                  'https://dcache.cta.cscs.ch:2880/')
     app.config['CTADS_UPSTREAM_BASEPATH'] = \
-        os.getenv('CTADS_UPSTREAM_BASEPATH', "pnfs/cta.cscs.ch/")
+        os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEPATH'] = \
-        os.getenv('CTADS_UPSTREAM_BASEPATH', "pnfs/cta.cscs.ch/")
+        os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
-        os.getenv('CTADS_UPSTREAM_BASEFOLDER', "lst")
+        os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
 
     return app
 
@@ -87,17 +101,17 @@ def authenticated(f):
     # in the future, the check will be done with rucio maybe
     """Decorator for authenticating with the Hub via OAuth"""
 
-    print("authenticated check:", app.config)
+    print('authenticated check:', app.config)
 
     @wraps(f)
     def decorated(*args, **kwargs):
         if app.config['CTADS_DISABLE_ALL_AUTH']:
-            return f("anonymous", *args, **kwargs)
+            return f('anonymous', *args, **kwargs)
         else:
             if auth is None:
-                return "Unable to use jupyterhub to verify access to this\
+                return 'Unable to use jupyterhub to verify access to this\
                     service. At this time, the downloadservice uses jupyterhub\
-                    to control access to protected resources", 500
+                    to control access to protected resources', 500
 
             header = request.headers.get('Authorization')
             if header and header.startswith('Bearer '):
@@ -105,7 +119,7 @@ def authenticated(f):
             else:
                 header_token = None
 
-            token = session.get("token") \
+            token = session.get('token') \
                 or request.args.get('token') \
                 or header_token
 
@@ -135,13 +149,13 @@ def authenticated(f):
 # def clear_trailing():
 #     rp = request.path
 #     if rp != '/' and rp.endswith('/'):
-#         logger.warning("redirect %s", rp[:-1])
+#         logger.warning('redirect %s', rp[:-1])
 #         return redirect(rp[:-1])
 
-@app.route(url_prefix + "/")
+@app.route(url_prefix + '/')
 @authenticated
 def login(user):
-    token = session.get("token") or request.args.get('token')
+    token = session.get('token') or request.args.get('token')
     return render_template('index.html', user=user, token=token)
 
 
@@ -153,7 +167,7 @@ def get_upstream_session():
     return session
 
 
-@app.route(url_prefix + "/health")
+@app.route(url_prefix + '/health')
 def health():
     url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
@@ -164,21 +178,21 @@ def health():
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
                                      timeout=10)
         if r.status_code in [200, 207]:
-            return "OK", 200
+            return 'OK', 200
         else:
-            logger.error("service is unhealthy: %s", r.content.decode())
-            return "Unhealthy!", 500
+            logger.error('service is unhealthy: %s', r.content.decode())
+            return 'Unhealthy!', 500
     except requests.exceptions.ReadTimeout as e:
-        logger.error("service is unhealthy: %s", e)
-        return "Unhealthy!", 500
+        logger.error('service is unhealthy: %s', e)
+        return 'Unhealthy!', 500
 
 
 # @oidc.require_login
 # @oidc.accept_token(require_token=True)
 
-@app.route(url_prefix + '/list', methods=["GET", "POST"],
+@app.route(url_prefix + '/list', methods=['GET', 'POST'],
            defaults={'path': ''})
-@app.route(url_prefix + '/list/<path:path>', methods=["GET", "POST"])
+@app.route(url_prefix + '/list/<path:path>', methods=['GET', 'POST'])
 @authenticated
 def list(user, path):
     # host = request.headers['Host']
@@ -186,7 +200,7 @@ def list(user, path):
     upstream_url = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
         app.config['CTADS_UPSTREAM_BASEPATH'],
-        (path or "")
+        (path or '')
     )
 
     upstream_session = get_upstream_session()
@@ -195,18 +209,18 @@ def list(user, path):
         'PROPFIND', upstream_url, headers={'Depth': '1'})
 
     if r.status_code not in [200, 207]:
-        return f"Error: {r.status_code} {r.content.decode()}", r.status_code
+        return f'Error: {r.status_code} {r.content.decode()}', r.status_code
 
-    logger.debug("response: %s", r.content.decode())
+    logger.debug('response: %s', r.content.decode())
 
     try:
         tree = ET.parse(io.BytesIO(r.content))
         root = tree.getroot()
     except ET.ParseError as e:
-        logger.error("Error parsing XML %s in %s", e, r.content)
+        logger.error('Error parsing XML %s in %s', e, r.content)
         raise
 
-    logger.info("xml: %s", root)
+    logger.info('xml: %s', root)
 
     entries = []
 
@@ -217,13 +231,13 @@ def list(user, path):
     ])
 
     for i in root.iter('{DAV:}response'):
-        logger.debug("i: %s", i)
+        logger.debug('i: %s', i)
 
         entry = {}
         entries.append(entry)
 
         for j in i.iter():
-            logger.debug("> j: %s %s", j.tag, j.text)
+            logger.debug('> j: %s %s', j.tag, j.text)
             if j.tag in keymap:
                 entry[keymap[j.tag]] = j.text
 
@@ -231,8 +245,8 @@ def list(user, path):
         entry['href'] = re.sub(
             '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
 
-        entry['url'] = "/".join([
-            up.scheme + ":/", up.netloc,
+        entry['url'] = '/'.join([
+            up.scheme + ':/', up.netloc,
             re.sub(path, '', up.path), entry['href']
         ])
 
@@ -245,9 +259,9 @@ def list(user, path):
     # TODO print useful logs for loki
 
 
-@app.route(url_prefix + '/fetch', methods=["GET", "POST"],
+@app.route(url_prefix + '/fetch', methods=['GET', 'POST'],
            defaults={'path': ''})
-@app.route(url_prefix + '/fetch/<path:path>', methods=["GET", "POST"])
+@app.route(url_prefix + '/fetch/<path:path>', methods=['GET', 'POST'])
 @authenticated
 def fetch(user, path):
     if '..' in path:
@@ -255,19 +269,19 @@ def fetch(user, path):
 
     url = urljoin_multipart(app.config['CTADS_UPSTREAM_ENDPOINT'],
                             app.config['CTADS_UPSTREAM_BASEPATH'],
-                            (path or ""))
+                            (path or ''))
 
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
-    logger.info("fetching upstream url %s", url)
+    logger.info('fetching upstream url %s', url)
 
     upstream_session = get_upstream_session()
 
     def generate():
         with upstream_session.get(url, stream=True) as f:
-            logger.debug("got response headers: %s", f.headers)
+            logger.debug('got response headers: %s', f.headers)
             # headers['Content-Type'] = f.headers['content-type']
-            logger.info("opened %s", f)
+            logger.info('opened %s', f)
             for r in f.iter_content(chunk_size=chunk_size):
                 yield r
 
@@ -279,11 +293,11 @@ def user_to_path_fragment(user):
     if isinstance(user, dict):
         user = user['name']
 
-    return re.sub("[^0-1a-z]", "_", user.lower())
+    return re.sub('[^0-1a-z]', '_', user.lower())
 
 
-@app.route(url_prefix + '/upload', methods=["POST"], defaults={'path': None})
-@app.route(url_prefix + '/upload/<path:path>', methods=["POST"])
+@app.route(url_prefix + '/upload', methods=['POST'], defaults={'path': None})
+@app.route(url_prefix + '/upload/<path:path>', methods=['POST'])
 @authenticated
 def upload(user, path):
 
@@ -293,7 +307,7 @@ def upload(user, path):
 
     upload_base_path = urljoin_multipart(
         app.config['CTADS_UPSTREAM_BASEFOLDER'],
-        "users",
+        'users',
         user_to_path_fragment(user))
     upload_path = urljoin_multipart(upload_base_path, path)
 
@@ -307,10 +321,10 @@ def upload(user, path):
 
     chunk_size = request.args.get('chunk_size', default_chunk_size, type=int)
 
-    logger.info("uploading to path %s", path)
-    logger.info("uploading to base upstream url %s", baseurl)
-    logger.info("uploading to upstream url %s", url)
-    logger.info("uploading chunk size %s", chunk_size)
+    logger.info('uploading to path %s', path)
+    logger.info('uploading to base upstream url %s', baseurl)
+    logger.info('uploading to upstream url %s', url)
+    logger.info('uploading chunk size %s', chunk_size)
 
     upstream_session = get_upstream_session()
 
@@ -320,7 +334,7 @@ def upload(user, path):
 
     def generate(stats):
         while r := request.stream.read(chunk_size):
-            logger.info("read %s Mb total %s Mb",
+            logger.info('read %s Mb total %s Mb',
                         len(r)/1024**2, stats['total_written']/1024**2)
             stats['total_written'] += len(r)
             yield r
@@ -328,15 +342,15 @@ def upload(user, path):
     r = upstream_session.put(url, data=generate(stats))
     # r = upstream_session.put(url, stream=True, data=request.stream)
 
-    logger.info("%s %s %s", url, r, r.text)
+    logger.info('%s %s %s', url, r, r.text)
 
     if r.status_code not in [200, 201]:
-        return f"Error: {r.status_code} {r.content.decode()}", r.status_code
+        return f'Error: {r.status_code} {r.content.decode()}', r.status_code
     else:
         return {
-            "status": "uploaded",
-            "path": upload_path,
-            "total_written": stats['total_written']
+            'status': 'uploaded',
+            'path': upload_path,
+            'total_written': stats['total_written']
         }
 
     # TODO: first simple and safe mechanism would be to let users upload only
@@ -350,18 +364,18 @@ def upload(user, path):
 def oauth_callback():
     code = request.args.get('code', None)
     if code is None:
-        return 403
+        return 'Error: oauth callback code', 403
 
     # validate state field
     arg_state = request.args.get('state', None)
     cookie_state = request.cookies.get(auth.state_cookie_name)
     if arg_state is None or arg_state != cookie_state:
         # state doesn't match
-        return 403
+        return 'Error: oauth callback invalid state', 403
 
     token = auth.token_for_code(code)
     # store token in session cookie
-    session["token"] = token
+    session['token'] = token
     next_url = auth.get_next_url(cookie_state) or url_prefix
     response = make_response(redirect(next_url))
     return response
@@ -373,9 +387,9 @@ webdav_methods = ['GET', 'HEAD',  'MKCOL', 'OPTIONS',
                   ]
 
 
-@app.route(url_prefix + "/webdav", defaults={'path': ''},
+@app.route(url_prefix + '/webdav', defaults={'path': ''},
            methods=webdav_methods)
-@app.route(url_prefix + "/webdav/<path:path>", methods=webdav_methods)
+@app.route(url_prefix + '/webdav/<path:path>', methods=webdav_methods)
 @authenticated
 def webdav(user, path):
     API_HOST = urljoin_multipart(
@@ -386,13 +400,13 @@ def webdav(user, path):
     if request.method not in ['GET', 'HEAD', 'OPTIONS', 'PROPFIND', 'TRACE']:
         required_path_prefix = urljoin_multipart(
             app.config['CTADS_UPSTREAM_BASEFOLDER'],
-            "users",
-            user_to_path_fragment(user)) + "/"
+            'users',
+            user_to_path_fragment(user)) + '/'
 
         if not path.startswith(required_path_prefix):
-            return "Access denied", \
-                f"403 Missing rights to write in : {path}," +\
-                " you are only allowed to write in " + \
+            return 'Access denied', \
+                f'403 Missing rights to write in : {path}, ' + \
+                'you are only allowed to write in ' + \
                 required_path_prefix
 
     # Exclude all "hop-by-hop headers" defined by RFC 2616
@@ -424,7 +438,7 @@ def webdav(user, path):
         if k.lower() not in excluded_headers
     ]
 
-    endpoint_prefix = url_prefix+"/webdav"
+    endpoint_prefix = url_prefix+'/webdav'
 
     def is_prop_method():
         return request.method in ['PROPFIND', 'PROPPATCH']
@@ -432,10 +446,10 @@ def webdav(user, path):
     def prop_content():
         return res.content\
             .replace(
-                (":href>/" +
-                 app.config['CTADS_UPSTREAM_BASEFOLDER'] + "/").encode(),
-                (":href>"+endpoint_prefix+"/" +
-                 app.config['CTADS_UPSTREAM_BASEFOLDER']+"/").encode()
+                (':href>/' +
+                 app.config['CTADS_UPSTREAM_BASEFOLDER'] + '/').encode(),
+                (':href>'+endpoint_prefix+'/' +
+                 app.config['CTADS_UPSTREAM_BASEFOLDER']+'/').encode()
             )
 
     return Response(
