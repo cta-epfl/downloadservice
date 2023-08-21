@@ -168,6 +168,11 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
+def certificate_validity(certificate):
+    x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certificate)
+    asn1_time=x509.get_notAfter()
+    return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ').date()
+
 @app.route(url_prefix + '/upload-cert', methods=['POST'])
 @authenticated
 def upload_cert(user):
@@ -175,16 +180,16 @@ def upload_cert(user):
     certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
 
     certificate = request.json.get('certificate')
+    try:
+        if certificate and certificate_validity(certificate) > (date.today()+timedelta(days=1)):
+            return 'certificate validity too large', 400
+    except:
+        return 'invalid certificate', 400
 
     with open(certificate_file, 'w') as f:
         f.write(certificate)
-    
-    return 'Certificate stored', 200
 
-def certificate_validity(certificate):
-    x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certificate)
-    asn1_time=x509.get_notAfter()
-    return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ').date()
+    return 'Certificate stored', 200
 
 @app.route(url_prefix + '/upload-main-cert', methods=['POST'])
 @authenticated
@@ -198,9 +203,12 @@ def upload_main_cert(user):
 
     if certificate is None and cabundle is None:
         return 'missing certificate of cabundle', 400
-    if certificate and certificate_validity(certificate) > (date.today()+timedelta(days=1)):
-        return 'certificate validity too large', 400
-
+    try:
+        if certificate and certificate_validity(certificate) > (date.today()+timedelta(days=1)):
+            return 'certificate validity too large', 400
+    except:
+        return 'invalid certificate', 400
+    
     updated = set()
     if certificate is not None:
         with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
