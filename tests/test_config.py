@@ -63,6 +63,7 @@ def test_invalid_maincert_config(app: Any, client: Any):
             )
             assert r.status_code == 200
 
+
 @pytest.mark.timeout(30)
 def test_original_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():

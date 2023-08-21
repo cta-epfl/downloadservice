@@ -171,7 +171,8 @@ def login(user):
 def certificate_validity(certificate):
     x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certificate)
     asn1_time=x509.get_notAfter()
-    return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ').date()
+    return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ')
+
 
 @app.route(url_prefix + '/upload-cert', methods=['POST'])
 @authenticated
@@ -181,7 +182,8 @@ def upload_cert(user):
 
     certificate = request.json.get('certificate')
     try:
-        if certificate and certificate_validity(certificate) > (date.today()+timedelta(days=1)):
+        if certificate and certificate_validity(certificate).date() > \
+            (date.today()+timedelta(days=1)):
             return 'certificate validity too large', 400
     except:
         return 'invalid certificate', 400
@@ -204,7 +206,8 @@ def upload_main_cert(user):
     if certificate is None and cabundle is None:
         return 'missing certificate of cabundle', 400
     try:
-        if certificate and certificate_validity(certificate) > (date.today()+timedelta(days=1)):
+        if certificate and certificate_validity(certificate).date() > \
+            (date.today()+timedelta(days=1)):
             return 'certificate validity too large', 400
     except:
         return 'invalid certificate', 400
@@ -233,15 +236,17 @@ def get_upstream_session(user = None):
         if os.path.isfile(own_certificate_file):
             cert = own_certificate_file
 
-    try:
+    with open(own_certificate_file) as f:
+        certificate = f.read()
+        if certificate_validity(certificate) < datetime.now():
+            if own_certificate:
+                raise f'Your configured certificate is invalid, please refresh it.'
+            else: 
+                logger.exception('outdated main certificate')
+                raise f'Service certificate invalid please contact us.'
+
         session.verify = app.config['CTADS_CABUNDLE']
         session.cert = cert
-    except Exception as e:
-        logger.exception(e)
-        if own_certificate:
-            raise f'Your configured certificate is invalid, please refresh it.'
-        else: 
-            raise f'Service certificate invalid please contact us.'
 
     return session
 
