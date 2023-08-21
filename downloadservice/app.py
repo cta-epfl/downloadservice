@@ -93,7 +93,7 @@ def create_app():
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
 
     # Check certificate folder
-    os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exists_ok=True)
+    os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exist_ok=True)
     
     # TODO: Check certificates and their validity
 
@@ -182,8 +182,8 @@ def upload_cert(user):
 @app.route(url_prefix + '/upload-main-cert', methods=['POST'])
 @authenticated
 def upload_main_cert(user):
-    # TODO: Check is admin
-    raise user
+    if not isinstance(user, dict) or user['admin'] != True:
+        return 'Access denied', 401
     
     data = request.json
     certificate = data.get('certificate', None)
