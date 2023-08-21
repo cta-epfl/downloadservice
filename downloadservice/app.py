@@ -74,6 +74,8 @@ def create_app():
     app.config['OIDC_COOKIE_SECURE'] = False
     app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
     app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
+    app.config['CTADS_CERTIFICATE_DIR'] = \
+        os.environ.get('CTADS_CERTIFICATE_DIR', './certificate/')
     app.config['CTADS_CABUNDLE'] = \
         os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
     app.config['CTADS_CLIENTCERT'] = \
@@ -89,6 +91,11 @@ def create_app():
         os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
+
+    # Check certificate folder
+    os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exists_ok=True)
+    
+    # TODO: Check certificates and their validity
 
     return app
 
@@ -159,8 +166,50 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
+@app.route(url_prefix + '/upload-cert', methods=['POST'])
+@authenticated
+def upload_cert(user):
+    filname = user_to_path_fragment(user) + ".crt"
+    certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + path
+
+    certificate = request.json.get('certificate')
+
+    with open(certificate_file, 'w') as f:
+        f.write(certificate)
+    
+    return 'Certificate stored', 200
+
+@app.route(url_prefix + '/upload-main-cert', methods=['POST'])
+@authenticated
+def upload_main_cert(user):
+    # TODO: Check is admin
+    raise user
+    
+    data = request.json
+    certificate = data.get('certificate', None)
+    cabundle = data.get('cabundle', None)
+
+    if certificate is None and cabundle is None:
+        return 'missing certificate of cabundle',400
+
+    updated = {}
+    if certificate is not None:
+        with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
+            f.write(certificate)
+            updated.add('Certificate')
+    if cabundle is not None:
+        with open(app.config['CTADS_CABUNDLE'], 'w') as f:
+            f.write(cabundle)
+            updated.add('CABundle')
+    
+    return ' and '.join(updated) + ' stored', 200
+
 def get_upstream_session():
     session = requests.Session()
+
+    # TODO: Check if user has it's own certificate
+    # TODO: Check certificates validity
+
     session.verify = app.config['CTADS_CABUNDLE']
     session.cert = app.config['CTADS_CLIENTCERT']
 
@@ -340,7 +389,6 @@ def upload(user, path):
             yield r
 
     r = upstream_session.put(url, data=generate(stats))
-    # r = upstream_session.put(url, stream=True, data=request.stream)
 
     logger.info('%s %s %s', url, r, r.text)
 
