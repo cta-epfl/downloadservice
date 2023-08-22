@@ -92,4 +92,6 @@ def test_original_maincert_config(app: Any, client: Any):
                 }
             )
             assert r.status_code == 400 and r.text == \
-                'certificate validity too long (max 1 day)'
+                'certificate validity too long, please generate a ' +\
+                'short-lived (max 1 day) proxy certificate for uploading. ' +\
+                'Please see https://ctaodc.ch/ for more details.'
