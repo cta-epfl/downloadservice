@@ -39,10 +39,12 @@ sentry_sdk.init(
 # from flask_oidc import OpenIDConnect
 logger = logging.getLogger(__name__)
 
+
 class CertificateError(Exception):
     def __init__(self, message="invalid certificate"):
         self.message = message
         super().__init__(self.message)
+
 
 def urljoin_multipart(*args):
     """Join multiple parts of a URL together, ignoring empty parts."""
@@ -100,8 +102,18 @@ def create_app():
 
     # Check certificate folder
     os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exist_ok=True)
-    
-    # TODO: Check certificates and their validity
+
+    # Check certificates and their validity on startup
+    cert_file = app.config['CTADS_CLIENTCERT']
+    try:
+        with open(cert_file, 'r') as f:
+            certificate = f.read()
+            if certificate_validity(certificate) <= datetime.now():
+                logger.warning('Configured certificate expired')
+    except FileNotFoundError:
+        logger.warning('No configured certificate')
+    except CertificateError:
+        logger.warning('Invalid configured certificate')
 
     return app
 
@@ -119,7 +131,7 @@ def authenticated(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if app.config['CTADS_DISABLE_ALL_AUTH']:
-            return f({'name':'anonymous', 'admin': True}, *args, **kwargs)
+            return f({'name': 'anonymous', 'admin': True}, *args, **kwargs)
         else:
             if auth is None:
                 return 'Unable to use jupyterhub to verify access to this\
@@ -174,11 +186,13 @@ def login(user):
 
 def certificate_validity(certificate):
     try:
-        x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certificate)
-        asn1_time=x509.get_notAfter()
+        x509 = OpenSSL.crypto.load_certificate(
+            OpenSSL.crypto.FILETYPE_PEM, certificate)
+        asn1_time = x509.get_notAfter()
         return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ')
     except Exception:
         raise CertificateError('invalid certificate')
+
 
 @app.route(url_prefix + '/upload-cert', methods=['POST'])
 @authenticated
@@ -189,8 +203,8 @@ def upload_cert(user):
     certificate = request.json.get('certificate')
     try:
         if certificate and certificate_validity(certificate).date() > \
-            (date.today()+timedelta(days=1)):
-            return 'certificate validity too large', 400
+                (date.today()+timedelta(days=1)):
+            return 'certificate validity too long (max 1 day)', 400
     except CertificateError as e:
         return 'invalid certificate', 400
 
@@ -198,6 +212,7 @@ def upload_cert(user):
         f.write(certificate)
 
     return 'Certificate stored', 200
+
 
 @app.route(url_prefix + '/upload-main-cert', methods=['POST'])
 @authenticated
@@ -213,11 +228,11 @@ def upload_main_cert(user):
         return 'missing certificate of cabundle', 400
     try:
         if certificate and certificate_validity(certificate).date() > \
-            (date.today()+timedelta(days=1)):
-            return 'certificate validity too large', 400
+                (date.today()+timedelta(days=1)):
+            return 'certificate validity too long (max 1 day)', 400
     except CertificateError as e:
         return 'invalid certificate', 400
-    
+
     updated = set()
     if certificate is not None:
         with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
@@ -227,10 +242,11 @@ def upload_main_cert(user):
         with open(app.config['CTADS_CABUNDLE'], 'w') as f:
             f.write(cabundle)
             updated.add('CABundle')
-    
+
     return ' and '.join(updated) + ' stored', 200
 
-def get_upstream_session(user = None):
+
+def get_upstream_session(user=None):
     session = requests.Session()
 
     cert = app.config['CTADS_CLIENTCERT']
@@ -238,16 +254,16 @@ def get_upstream_session(user = None):
     if user is not None:
         filename = user_to_path_fragment(user) + ".crt"
         own_certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
-        
+
         if os.path.isfile(own_certificate_file):
             cert = own_certificate_file
 
-    with open(own_certificate_file) as f:
+    with open(own_certificate_file, 'r') as f:
         certificate = f.read()
         if certificate_validity(certificate) <= datetime.now():
             if own_certificate:
                 raise f'Your configured certificate is invalid, please refresh it.'
-            else: 
+            else:
                 logger.exception('outdated main certificate')
                 raise f'Service certificate invalid please contact us.'
 
@@ -280,9 +296,6 @@ def health():
         logger.error('service is unhealthy: %s', e)
         return 'Unhealthy!', 500
 
-
-# @oidc.require_login
-# @oidc.accept_token(require_token=True)
 
 @app.route(url_prefix + '/list', methods=['GET', 'POST'],
            defaults={'path': ''})
