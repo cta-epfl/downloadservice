@@ -228,7 +228,7 @@ def upload_main_cert(user):
         return 'requests missing certificate or cabundle', 400
     try:
         if certificate and certificate_validity(certificate).date() > \
-                (date.today()+timedelta(days=1)):
+                (date.today()+timedelta(days=7)):
             return 'certificate validity too long (max 1 day)', 400
     except CertificateError as e:
         sentry_sdk.capture_exception(e)
