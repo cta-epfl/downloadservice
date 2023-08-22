@@ -70,6 +70,37 @@ url_prefix = os.getenv('JUPYTERHUB_SERVICE_PREFIX', '').rstrip('/')
 default_chunk_size = 10 * 1024 * 1024
 
 
+def verify_certificate(cabundle, certificate):
+    print("--------------------------CALLED WITH")
+    print(cabundle)
+    print("--------------------------HUM")
+    print(certificate)
+    try:
+        _PEM_RE = re.compile(
+            '-----BEGIN CERTIFICATE-----\r?.+?\r?-----END CERTIFICATE-----\r?\n?', re.DOTALL)
+
+        def parse_chain(chain):
+            # returns a list of certificates
+            return [c.group() for c in _PEM_RE.finditer(chain)]
+
+        client_cert = OpenSSL.crypto.load_certificate(
+            OpenSSL.crypto.FILETYPE_PEM, certificate)
+
+        store = OpenSSL.crypto.X509Store()
+        for cert in parse_chain(cabundle):
+            print("LOADED CERTIFICATE !!!")
+            store.add_cert(OpenSSL.crypto.load_certificate(
+                OpenSSL.crypto.FILETYPE_PEM, cert))
+
+        ctx = OpenSSL.crypto.X509StoreContext(store, client_cert)
+        ctx.verify_certificate()
+    except OpenSSL.crypto.X509StoreContextError as e:
+        # raise e
+        raise CertificateError('invalid certificate verification chain')
+    except OpenSSL.crypto.Error:
+        raise CertificateError('invalid certificate')
+
+
 def certificate_validity(certificate):
     try:
         x509 = OpenSSL.crypto.load_certificate(
@@ -113,10 +144,13 @@ def create_app():
     os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exist_ok=True)
 
     # Check certificates and their validity on startup
+    cabundle_file = app.config['CTADS_CABUNDLE']
     cert_file = app.config['CTADS_CLIENTCERT']
     try:
+        cabundle = open(cabundle_file, 'r').read()
         with open(cert_file, 'r') as f:
             certificate = f.read()
+            verify_certificate(cabundle, certificate)
             if certificate_validity(certificate) <= datetime.now():
                 logger.warning('Configured certificate expired')
     except FileNotFoundError:
@@ -200,6 +234,9 @@ def upload_cert(user):
 
     certificate = request.json.get('certificate')
 
+    cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
+    verify_certificate(cabundle, certificate)
+
     validity = certificate_validity(certificate)
     if validity.date() > date.today()+timedelta(days=7):
         return 'certificate validity too long, please generate a ' +\
@@ -226,6 +263,12 @@ def upload_main_cert(user):
 
     if certificate is None and cabundle is None:
         return 'requests missing certificate or cabundle', 400
+    
+    if cabundle is None:
+        cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
+    if certificate is None:
+        certificate = open(app.config['CTADS_CLIENTCERT'], 'r').read()
+    verify_certificate(cabundle, certificate)
 
     if certificate and certificate_validity(certificate).date() > \
             (date.today()+timedelta(days=7)):
