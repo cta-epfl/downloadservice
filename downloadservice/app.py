@@ -230,7 +230,7 @@ def upload_main_cert(user):
     if certificate and certificate_validity(certificate).date() > \
             (date.today()+timedelta(days=7)):
         return 'certificate validity too long, please generate a ' +\
-            'short-lived (max 7 days) proxy certificate for uploading. ' +\
+            'short-lived (max 1 day) proxy certificate for uploading. ' +\
             'Please see https://ctaodc.ch/ for more details.', 400
 
     updated = set()
