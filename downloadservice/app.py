@@ -188,8 +188,8 @@ def certificate_validity(certificate):
             OpenSSL.crypto.FILETYPE_PEM, certificate)
         asn1_time = x509.get_notAfter()
         return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ')
-    except Exception:
-        raise CertificateError('invalid certificate')
+    except OpenSSL.crypto.Error as e:
+        raise CertificateError('invalid certificate : '+str(e))
 
 
 @app.route(url_prefix + '/upload-cert', methods=['POST'])
@@ -203,7 +203,7 @@ def upload_cert(user):
     validity = certificate_validity(certificate)
     if validity.date() > date.today()+timedelta(days=1):
         return 'certificate validity too long (max 1 day)', 400
-    if validity <= datetime.today()+timedelta(days=1):
+    if validity <= datetime.today():
         return 'certificate expired', 400
 
     with open(certificate_file, 'w') as f:

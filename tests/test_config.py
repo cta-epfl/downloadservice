@@ -45,7 +45,7 @@ def test_invalid_owncert_config(app: Any, client: Any):
             certificate = 'fake certificate string'
             r = client.post(url_for('upload_cert'), json={
                             'certificate': certificate})
-            assert r.status_code == 400 and r.text == 'invalid certificate'
+            assert r.status_code == 400 and r.text.startswith('invalid certificate : ')
 
 
 @pytest.mark.timeout(30)
