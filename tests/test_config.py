@@ -1,4 +1,4 @@
-from conftest import upstream_webdav_server
+from conftest import upstream_webdav_server, tmp_certificate
 from flask import url_for
 import os
 import pytest
@@ -6,25 +6,14 @@ import tempfile
 from typing import Any
 
 
-def tmp_certificate(duration):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # cert key
-        key_file = tmpdir+'/private.key'
-        os.system('openssl genrsa -out ' + key_file)
-        # Cert signing request
-        csr_file = tmpdir+'/request.csr'
-        os.system('openssl req -new -batch -key '+key_file+' -out '+csr_file)
-        return os.popen('openssl x509 -req -days "'+str(duration)+'" -in ' +
-                        csr_file+' -signkey '+key_file).read()
-
-
 @pytest.mark.timeout(30)
 def test_valid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
-            certificate = tmp_certificate(1)
+            ca_bundle, certificate = tmp_certificate(1)
+            open(app.config['CTADS_CABUNDLE'], 'w').write(ca_bundle)
             r = client.post(url_for('upload_cert'), json={
-                            'certificate': certificate})
+                'certificate': certificate})
             assert r.status_code == 200
 
 
@@ -32,65 +21,66 @@ def test_valid_owncert_config(app: Any, client: Any):
 # def test_expired_owncert_config(app: Any, client: Any):
 #     with upstream_webdav_server():
 #         with app.app_context():
-#             certificate = tmp_certificate(-1)
+#             ca_bundle, certificate = tmp_certificate(-1)
 #             r = client.post(url_for('upload_cert'), json={
 #                             'certificate': certificate})
 #             assert r.status_code == 400
 
 
-@pytest.mark.timeout(30)
+@ pytest.mark.timeout(30)
 def test_invalid_owncert_config(app: Any, client: Any):
-    with upstream_webdav_server():
+    with upstream_webdav_server() as (server_dir, _):
         with app.app_context():
             certificate = 'fake certificate string'
             r = client.post(url_for('upload_cert'), json={
-                            'certificate': certificate})
+                'certificate': certificate})
             assert r.status_code == 400 and \
                 r.text.startswith('invalid certificate : ')
 
 
-@pytest.mark.timeout(30)
+@ pytest.mark.timeout(30)
 def test_valid_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
-            certificate = tmp_certificate(1)
+            ca_bundle, certificate = tmp_certificate(1)
             r = client.post(
                 url_for('upload_main_cert'),
                 json={
                     'certificate': certificate,
-                    'cabundle': certificate
+                    'cabundle': ca_bundle
                 }
             )
             assert r.status_code == 200
 
 
-@pytest.mark.timeout(30)
+@ pytest.mark.timeout(30)
 def test_invalid_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
-            certificate = tmp_certificate(1)
+            ca_bundle, certificate = tmp_certificate(1)
             r = client.post(
                 url_for('upload_main_cert'),
                 json={
                     'certificate': certificate,
-                    'cabundle': certificate
+                    'cabundle': ca_bundle
                 }
             )
             assert r.status_code == 200
 
 
-@pytest.mark.timeout(30)
+@ pytest.mark.timeout(30)
 def test_original_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
-            certificate = tmp_certificate(365)
+            ca_bundle, certificate = tmp_certificate(365)
             r = client.post(
                 url_for('upload_main_cert'),
                 json={
                     'certificate': certificate,
-                    'cabundle': certificate
+                    'cabundle': ca_bundle
                 }
             )
+            print(r.text)
             assert r.status_code == 400 and r.text == \
                 'certificate validity too long, please generate a ' +\
                 'short-lived (max 7 day) proxy certificate for uploading. ' +\

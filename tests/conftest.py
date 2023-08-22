@@ -36,20 +36,48 @@ def generate_random_file(filename, size):
         fout.write(os.urandom(size))
 
 
+def tmp_certificate(duration):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # RootCA key
+        root_key_file = tmpdir+'/rootCA.key'
+        os.system('openssl genrsa -out ' + root_key_file + ' 4096')
+        # RootCA Certificate
+        root_crt_file = tmpdir+'/rootCA.crt'
+        os.system('openssl req -x509 -new -batch -nodes -key ' + root_key_file +
+                  ' -sha256 -days 365 -out ' + root_crt_file)
+        ca_bundle = open(root_crt_file).read()
+
+        # User key
+        user_key_file = tmpdir+'/user.key'
+        os.system('openssl genrsa -out ' + user_key_file + ' 2048')
+        # Cert signing request
+        user_csr_file = tmpdir+'/request.csr'
+        os.system('openssl req -new -batch -key ' + user_key_file +
+                  ' -out ' + user_csr_file)
+        user_cert = os.popen('openssl x509 -req' +
+                             ' -in ' + user_csr_file +
+                             ' -CA ' + root_crt_file +
+                             ' -CAkey ' + root_key_file +
+                             ' -CAcreateserial' +
+                             ' -days "'+str(duration)+'"').read()
+        return ca_bundle, user_cert
+
+
 @pytest.fixture(scope="session")
 def app():
     with tempfile.TemporaryDirectory() as tmpdir:
         from downloadservice.app import app
 
-        os.system(f"openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
-                -keyout {tmpdir}/key.pem -out {tmpdir}/cert.pem -batch")
+        ca_bundle, certificate = tmp_certificate(1)
+        open(f'{tmpdir}/cabundle.pem', 'w').write(ca_bundle)
+        open(f'{tmpdir}/cliencert.crt', 'w').write(certificate)
 
         app.config.update({
             "TESTING": True,
             "CTADS_DISABLE_ALL_AUTH": True,
             "DEBUG": True,
-            "CTADS_CABUNDLE": f"{tmpdir}/cert.pem",
-            "CTADS_CLIENTCERT": f"{tmpdir}/cert.pem",
+            "CTADS_CABUNDLE": f"{tmpdir}/cabundle.pem",
+            "CTADS_CLIENTCERT": f"{tmpdir}/clientcert.crt",
             'CTADS_UPSTREAM_ENDPOINT':
                 f'http://{webdav_server_host}:{str(webdav_server_port)}/',
             'CTADS_UPSTREAM_BASEPATH': '',

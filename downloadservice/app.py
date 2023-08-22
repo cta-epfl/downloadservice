@@ -201,9 +201,9 @@ def upload_cert(user):
     certificate = request.json.get('certificate')
 
     validity = certificate_validity(certificate)
-    if validity.date() > date.today()+timedelta(days=1):
+    if validity.date() > date.today()+timedelta(days=7):
         return 'certificate validity too long, please generate a ' +\
-            'short-lived (max 1 day) proxy certificate for uploading. ' +\
+            'short-lived (max 7 day) proxy certificate for uploading. ' +\
             'Please see https://ctaodc.ch/ for more details.', 400
     if validity <= datetime.today():
         return 'certificate expired', 400
@@ -230,7 +230,7 @@ def upload_main_cert(user):
     if certificate and certificate_validity(certificate).date() > \
             (date.today()+timedelta(days=7)):
         return 'certificate validity too long, please generate a ' +\
-            'short-lived (max 1 day) proxy certificate for uploading. ' +\
+            'short-lived (max 7 day) proxy certificate for uploading. ' +\
             'Please see https://ctaodc.ch/ for more details.', 400
 
     updated = set()
