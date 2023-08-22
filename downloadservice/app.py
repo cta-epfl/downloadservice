@@ -225,7 +225,7 @@ def upload_main_cert(user):
     cabundle = data.get('cabundle', None)
 
     if certificate is None and cabundle is None:
-        return 'missing certificate of cabundle', 400
+        return 'missing certificate or cabundle', 400
     try:
         if certificate and certificate_validity(certificate).date() > \
                 (date.today()+timedelta(days=1)):
