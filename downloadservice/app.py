@@ -70,6 +70,16 @@ url_prefix = os.getenv('JUPYTERHUB_SERVICE_PREFIX', '').rstrip('/')
 default_chunk_size = 10 * 1024 * 1024
 
 
+def certificate_validity(certificate):
+    try:
+        x509 = OpenSSL.crypto.load_certificate(
+            OpenSSL.crypto.FILETYPE_PEM, certificate)
+        asn1_time = x509.get_notAfter()
+        return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ')
+    except OpenSSL.crypto.Error as e:
+        raise CertificateError('invalid certificate : '+str(e))
+
+
 def create_app():
     app = Flask(__name__)
 
@@ -182,16 +192,6 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
-def certificate_validity(certificate):
-    try:
-        x509 = OpenSSL.crypto.load_certificate(
-            OpenSSL.crypto.FILETYPE_PEM, certificate)
-        asn1_time = x509.get_notAfter()
-        return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ')
-    except OpenSSL.crypto.Error as e:
-        raise CertificateError('invalid certificate : '+str(e))
-
-
 @app.route(url_prefix + '/upload-cert', methods=['POST'])
 @authenticated
 def upload_cert(user):
@@ -263,18 +263,21 @@ def get_upstream_session(user=None):
             own_certificate = True
             cert = own_certificate_file
 
-    with open(own_certificate_file, 'r') as f:
-        certificate = f.read()
-        if certificate_validity(certificate) <= datetime.now():
-            if own_certificate:
-                raise 'Your configured certificate is invalid, ' + \
-                    'please refresh it.'
-            else:
-                logger.exception('outdated main certificate')
-                raise 'Service certificate invalid please contact us.'
+    try:
+        with open(cert, 'r') as f:
+            certificate = f.read()
+            if certificate_validity(certificate) <= datetime.now():
+                if own_certificate:
+                    raise 'Your configured certificate is invalid, ' + \
+                        'please refresh it.'
+                else:
+                    logger.exception('outdated main certificate')
+                    raise 'Service certificate invalid please contact us.'
 
-        session.verify = app.config['CTADS_CABUNDLE']
-        session.cert = cert
+            session.verify = app.config['CTADS_CABUNDLE']
+            session.cert = cert
+    except FileNotFoundError:
+        raise CertificateError('no valid certificate configured')
 
     return session
 

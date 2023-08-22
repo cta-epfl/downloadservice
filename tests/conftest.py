@@ -140,8 +140,9 @@ def kill_child_processes(parent_pid, sig=signal.SIGINT):
 def testing_download_service(pytestconfig):
     with tempfile.TemporaryDirectory() as tmpdir:
 
-        os.system(f"openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 \
-                -keyout {tmpdir}/key.pem -out {tmpdir}/cert.pem -batch")
+        ca_bundle, certificate = tmp_certificate(1)
+        open(f'{tmpdir}/cabundle.pem', 'w').write(ca_bundle)
+        open(f'{tmpdir}/cliencert.crt', 'w').write(certificate)
 
         rootdir = pytestconfig.rootdir
 
@@ -154,8 +155,8 @@ def testing_download_service(pytestconfig):
 
         env['CTADS_DISABLE_ALL_AUTH'] = 'True'
         env['CTADS_CABUNDLE'] = "cabundle.pem"
-        env["CTADS_CABUNDLE"] = f"{tmpdir}/cert.pem"
-        env["CTADS_CLIENTCERT"] = f"{tmpdir}/cert.pem"
+        env["CTADS_CABUNDLE"] = f"{tmpdir}/cabundle.pem"
+        env["CTADS_CLIENTCERT"] = f"{tmpdir}/clientcert.crt"
         env['CTADS_UPSTREAM_ENDPOINT'] = \
             f'http://{webdav_server_host}:{str(webdav_server_port)}/'
         env['CTADS_UPSTREAM_BASEPATH'] = ''
