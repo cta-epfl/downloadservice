@@ -9,7 +9,6 @@ import requests
 import secrets
 import xml.etree.ElementTree as ET
 import importlib.metadata
-
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,
     session, stream_with_context, render_template
@@ -206,6 +205,7 @@ def upload_cert(user):
                 (date.today()+timedelta(days=1)):
             return 'certificate validity too long (max 1 day)', 400
     except CertificateError as e:
+        sentry_sdk.capture_exception(e)
         return 'invalid certificate', 400
 
     with open(certificate_file, 'w') as f:
@@ -231,6 +231,7 @@ def upload_main_cert(user):
                 (date.today()+timedelta(days=1)):
             return 'certificate validity too long (max 1 day)', 400
     except CertificateError as e:
+        sentry_sdk.capture_exception(e)
         return 'invalid certificate', 400
 
     updated = set()
@@ -313,6 +314,7 @@ def list(user, path):
     try:
         upstream_session = get_upstream_session(user)
     except CertificateError as e:
+        sentry_sdk.capture_exception(e)
         return str(e), 500
 
     r = upstream_session.request(
@@ -388,6 +390,7 @@ def fetch(user, path):
     try:
         upstream_session = get_upstream_session(user)
     except CertificateError as e:
+        sentry_sdk.capture_exception(e)
         return str(e), 500
 
     def generate():
@@ -442,6 +445,7 @@ def upload(user, path):
     try:
         upstream_session = get_upstream_session(user)
     except CertificateError as e:
+        sentry_sdk.capture_exception(e)
         return str(e), 500
 
     r = upstream_session.request('MKCOL', baseurl)
@@ -538,6 +542,7 @@ def webdav(user, path):
     try:
         upstream_session = get_upstream_session(user)
     except CertificateError as e:
+        sentry_sdk.capture_exception(e)
         return str(e), 500
 
     res = upstream_session.request(
