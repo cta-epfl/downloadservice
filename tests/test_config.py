@@ -14,7 +14,8 @@ def tmp_certificate(duration):
         # Cert signing request
         csr_file = tmpdir+'/request.csr'
         os.system('openssl req -new -batch -key '+key_file+' -out '+csr_file)
-        return os.popen('openssl x509 -req -days '+str(duration)+' -in '+csr_file+' -signkey '+key_file).read()
+        return os.popen('openssl x509 -req -days '+str(duration)+' -in ' +
+                        csr_file+' -signkey '+key_file).read()
 
 
 @pytest.mark.timeout(30)
@@ -79,4 +80,5 @@ def test_original_maincert_config(app: Any, client: Any):
                     'cabundle': certificate
                 }
             )
-            assert r.status_code == 400 and r.text == 'certificate validity too long (max 1 day)'
+            assert r.status_code == 400 and r.text == \
+                'certificate validity too long (max 1 day)'

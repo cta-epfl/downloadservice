@@ -217,7 +217,7 @@ def upload_cert(user):
 @app.route(url_prefix + '/upload-main-cert', methods=['POST'])
 @authenticated
 def upload_main_cert(user):
-    if not isinstance(user, dict) or user['admin'] != True:
+    if not isinstance(user, dict) or user['admin'] is not True:
         return 'access denied', 401
 
     data = request.json
@@ -263,10 +263,11 @@ def get_upstream_session(user=None):
         certificate = f.read()
         if certificate_validity(certificate) <= datetime.now():
             if own_certificate:
-                raise f'Your configured certificate is invalid, please refresh it.'
+                raise 'Your configured certificate is invalid, ' + \
+                    'please refresh it.'
             else:
                 logger.exception('outdated main certificate')
-                raise f'Service certificate invalid please contact us.'
+                raise 'Service certificate invalid please contact us.'
 
         session.verify = app.config['CTADS_CABUNDLE']
         session.cert = cert
