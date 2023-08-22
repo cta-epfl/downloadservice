@@ -200,9 +200,11 @@ def upload_cert(user):
 
     certificate = request.json.get('certificate')
 
-    if certificate and certificate_validity(certificate).date() > \
-            (date.today()+timedelta(days=1)):
+    validity = certificate_validity(certificate)
+    if validity.date() > date.today()+timedelta(days=1):
         return 'certificate validity too long (max 1 day)', 400
+    if validity <= datetime.today()+timedelta(days=1):
+        return 'certificate expired', 400
 
     with open(certificate_file, 'w') as f:
         f.write(certificate)

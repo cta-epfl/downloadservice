@@ -14,7 +14,7 @@ def tmp_certificate(duration):
         # Cert signing request
         csr_file = tmpdir+'/request.csr'
         os.system('openssl req -new -batch -key '+key_file+' -out '+csr_file)
-        return os.popen('openssl x509 -req -days '+str(duration)+' -in ' +
+        return os.popen('openssl x509 -req -days "'+str(duration)+'" -in ' +
                         csr_file+' -signkey '+key_file).read()
 
 
@@ -26,6 +26,16 @@ def test_valid_owncert_config(app: Any, client: Any):
             r = client.post(url_for('upload_cert'), json={
                             'certificate': certificate})
             assert r.status_code == 200
+
+
+# @pytest.mark.timeout(30)
+# def test_expired_owncert_config(app: Any, client: Any):
+#     with upstream_webdav_server():
+#         with app.app_context():
+#             certificate = tmp_certificate(-1)
+#             r = client.post(url_for('upload_cert'), json={
+#                             'certificate': certificate})
+#             assert r.status_code == 400
 
 
 @pytest.mark.timeout(30)
