@@ -120,6 +120,12 @@ def create_app():
 app = create_app()
 
 
+@app.errorhandler(CertificateError)
+def handle_bad_request(e):
+    sentry_sdk.capture_exception(e)
+    return e.message, 400
+
+
 def authenticated(f):
     # TODO: here do a permission check;
     # in the future, the check will be done with rucio maybe
@@ -169,13 +175,6 @@ def authenticated(f):
     return decorated
 
 
-# @app.before_request
-# def clear_trailing():
-#     rp = request.path
-#     if rp != '/' and rp.endswith('/'):
-#         logger.warning('redirect %s', rp[:-1])
-#         return redirect(rp[:-1])
-
 @app.route(url_prefix + '/')
 @authenticated
 def login(user):
@@ -200,13 +199,10 @@ def upload_cert(user):
     certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
 
     certificate = request.json.get('certificate')
-    try:
-        if certificate and certificate_validity(certificate).date() > \
-                (date.today()+timedelta(days=1)):
-            return 'certificate validity too long (max 1 day)', 400
-    except CertificateError as e:
-        sentry_sdk.capture_exception(e)
-        return 'invalid certificate', 400
+
+    if certificate and certificate_validity(certificate).date() > \
+            (date.today()+timedelta(days=1)):
+        return 'certificate validity too long (max 1 day)', 400
 
     with open(certificate_file, 'w') as f:
         f.write(certificate)
@@ -226,13 +222,10 @@ def upload_main_cert(user):
 
     if certificate is None and cabundle is None:
         return 'requests missing certificate or cabundle', 400
-    try:
-        if certificate and certificate_validity(certificate).date() > \
-                (date.today()+timedelta(days=7)):
-            return 'certificate validity too long (max 1 day)', 400
-    except CertificateError as e:
-        sentry_sdk.capture_exception(e)
-        return 'invalid certificate', 400
+
+    if certificate and certificate_validity(certificate).date() > \
+            (date.today()+timedelta(days=7)):
+        return 'certificate validity too long (max 1 day)', 400
 
     updated = set()
     if certificate is not None:
@@ -282,11 +275,7 @@ def health():
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
         app.config['CTADS_UPSTREAM_BASEFOLDER']
 
-    try:
-        upstream_session = get_upstream_session()
-    except CertificateError as e:
-        return str(e), 500
-
+    upstream_session = get_upstream_session()
     try:
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
                                      timeout=10)
@@ -313,11 +302,7 @@ def list(user, path):
         (path or '')
     )
 
-    try:
-        upstream_session = get_upstream_session(user)
-    except CertificateError as e:
-        sentry_sdk.capture_exception(e)
-        return str(e), 500
+    upstream_session = get_upstream_session(user)
 
     r = upstream_session.request(
         'PROPFIND', upstream_url, headers={'Depth': '1'})
@@ -389,11 +374,7 @@ def fetch(user, path):
 
     logger.info('fetching upstream url %s', url)
 
-    try:
-        upstream_session = get_upstream_session(user)
-    except CertificateError as e:
-        sentry_sdk.capture_exception(e)
-        return str(e), 500
+    upstream_session = get_upstream_session(user)
 
     def generate():
         with upstream_session.get(url, stream=True) as f:
@@ -444,11 +425,7 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    try:
-        upstream_session = get_upstream_session(user)
-    except CertificateError as e:
-        sentry_sdk.capture_exception(e)
-        return str(e), 500
+    upstream_session = get_upstream_session(user)
 
     r = upstream_session.request('MKCOL', baseurl)
 
@@ -541,11 +518,7 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    try:
-        upstream_session = get_upstream_session(user)
-    except CertificateError as e:
-        sentry_sdk.capture_exception(e)
-        return str(e), 500
+    upstream_session = get_upstream_session(user)
 
     res = upstream_session.request(
         method=request.method,
