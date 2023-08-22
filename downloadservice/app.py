@@ -39,6 +39,10 @@ sentry_sdk.init(
 # from flask_oidc import OpenIDConnect
 logger = logging.getLogger(__name__)
 
+class CertificateError(Exception):
+    def __init__(self, message="invalid certificate"):
+        self.message = message
+        super().__init__(self.message)
 
 def urljoin_multipart(*args):
     """Join multiple parts of a URL together, ignoring empty parts."""
@@ -169,10 +173,12 @@ def login(user):
 
 
 def certificate_validity(certificate):
-    x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certificate)
-    asn1_time=x509.get_notAfter()
-    return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ')
-
+    try:
+        x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certificate)
+        asn1_time=x509.get_notAfter()
+        return datetime.strptime(asn1_time.decode(), '%Y%m%d%H%M%S%fZ')
+    except Exception:
+        raise CertificateError('invalid certificate')
 
 @app.route(url_prefix + '/upload-cert', methods=['POST'])
 @authenticated
@@ -185,7 +191,7 @@ def upload_cert(user):
         if certificate and certificate_validity(certificate).date() > \
             (date.today()+timedelta(days=1)):
             return 'certificate validity too large', 400
-    except:
+    except CertificateError as e:
         return 'invalid certificate', 400
 
     with open(certificate_file, 'w') as f:
@@ -209,7 +215,7 @@ def upload_main_cert(user):
         if certificate and certificate_validity(certificate).date() > \
             (date.today()+timedelta(days=1)):
             return 'certificate validity too large', 400
-    except:
+    except CertificateError as e:
         return 'invalid certificate', 400
     
     updated = set()
@@ -238,7 +244,7 @@ def get_upstream_session(user = None):
 
     with open(own_certificate_file) as f:
         certificate = f.read()
-        if certificate_validity(certificate) < datetime.now():
+        if certificate_validity(certificate) <= datetime.now():
             if own_certificate:
                 raise f'Your configured certificate is invalid, please refresh it.'
             else: 
@@ -257,7 +263,11 @@ def health():
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
         app.config['CTADS_UPSTREAM_BASEFOLDER']
 
-    upstream_session = get_upstream_session()
+    try:
+        upstream_session = get_upstream_session()
+    except CertificateError as e:
+        return str(e), 500
+
     try:
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
                                      timeout=10)
@@ -287,7 +297,10 @@ def list(user, path):
         (path or '')
     )
 
-    upstream_session = get_upstream_session(user)
+    try:
+        upstream_session = get_upstream_session(user)
+    except CertificateError as e:
+        return str(e), 500
 
     r = upstream_session.request(
         'PROPFIND', upstream_url, headers={'Depth': '1'})
@@ -359,7 +372,10 @@ def fetch(user, path):
 
     logger.info('fetching upstream url %s', url)
 
-    upstream_session = get_upstream_session(user)
+    try:
+        upstream_session = get_upstream_session(user)
+    except CertificateError as e:
+        return str(e), 500
 
     def generate():
         with upstream_session.get(url, stream=True) as f:
@@ -410,7 +426,10 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    upstream_session = get_upstream_session(user)
+    try:
+        upstream_session = get_upstream_session(user)
+    except CertificateError as e:
+        return str(e), 500
 
     r = upstream_session.request('MKCOL', baseurl)
 
@@ -503,7 +522,11 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    upstream_session = get_upstream_session(user)
+    try:
+        upstream_session = get_upstream_session(user)
+    except CertificateError as e:
+        return str(e), 500
+
     res = upstream_session.request(
         method=request.method,
         url=urljoin_multipart(API_HOST, path),

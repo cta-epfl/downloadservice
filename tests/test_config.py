@@ -17,16 +17,16 @@ def tmp_certificate(duration):
 
 
 @pytest.mark.timeout(30)
-def test_invalid_owncert_config(app: Any, client: Any):
+def test_valid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
-            certificate = tmp_certificate(1)    
+            certificate = tmp_certificate(1)
             r = client.post(url_for('upload_cert'), json={'certificate':certificate})
             assert r.status_code == 200
 
 
 @pytest.mark.timeout(30)
-def test_valid_owncert_config(app: Any, client: Any):
+def test_invalid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
             certificate = 'fake certificate string'
