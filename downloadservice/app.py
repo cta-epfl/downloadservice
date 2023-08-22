@@ -209,7 +209,7 @@ def upload_cert(user):
     with open(certificate_file, 'w') as f:
         f.write(certificate)
 
-    return 'Certificate stored', 200
+    return {'message': 'Certificate stored', 'validity': validity}, 200
 
 
 @app.route(url_prefix + '/upload-main-cert', methods=['POST'])
@@ -239,7 +239,11 @@ def upload_main_cert(user):
             f.write(cabundle)
             updated.add('CABundle')
 
-    return ' and '.join(updated) + ' stored', 200
+    return {
+        'message': ' and '.join(updated) + ' stored',
+        'cabundleUploaded': cabundle is not None,
+        'certificateUploaded': certificate is not None,
+    }, 200
 
 
 def get_upstream_session(user=None):
@@ -288,6 +292,7 @@ def health():
             return 'Unhealthy!', 500
     except requests.exceptions.ReadTimeout as e:
         logger.error('service is unhealthy: %s', e)
+        sentry_sdk.capture_exception(e)
         return 'Unhealthy!', 500
 
 
