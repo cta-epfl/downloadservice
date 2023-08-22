@@ -43,7 +43,7 @@ def tmp_certificate(duration):
         os.system('openssl genrsa -out ' + root_key_file + ' 4096')
         # RootCA Certificate
         root_crt_file = tmpdir+'/rootCA.crt'
-        os.system('openssl req -x509 -new -batch -nodes -key ' + root_key_file +
+        os.system('openssl req -x509 -new -batch -nodes -key '+root_key_file +
                   ' -sha256 -days 365 -out ' + root_crt_file)
         ca_bundle = open(root_crt_file).read()
 

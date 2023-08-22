@@ -1,8 +1,6 @@
 from conftest import upstream_webdav_server, tmp_certificate
 from flask import url_for
-import os
 import pytest
-import tempfile
 from typing import Any
 
 
