@@ -257,6 +257,7 @@ def get_upstream_session(user=None):
         own_certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
 
         if os.path.isfile(own_certificate_file):
+            own_certificate = True
             cert = own_certificate_file
 
     with open(own_certificate_file, 'r') as f:
