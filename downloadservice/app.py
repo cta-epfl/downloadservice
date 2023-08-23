@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
-from downloadservice.certificate import CertificateError, certificate_validity, verify_certificate
+from downloadservice.certificate import (
+    CertificateError, certificate_validity, verify_certificate
+)
 from functools import wraps
 import os
 import io

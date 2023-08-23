@@ -100,7 +100,8 @@ def app():
             "SERVER_NAME": 'app',
         })
 
-        yield app
+        with app.app_context():
+            yield app
 
 
 @contextmanager
