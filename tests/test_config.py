@@ -31,6 +31,7 @@ def test_expired_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
             ca_bundle, certificate = tmp_certificate(-1)
+            open(app.config['CTADS_CABUNDLE'], 'w').write(ca_bundle)
             r = client.post(url_for('upload_cert'), json={
                             'certificate': certificate})
             assert r.status_code == 400 and \
@@ -64,7 +65,7 @@ def test_valid_maincert_config(app: Any, client: Any):
 
 
 @ pytest.mark.timeout(30)
-def test_selfsigned_maincert_config(app: Any, client: Any):
+def test_invalid_chain_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
             _, certificate = tmp_certificate(1)
