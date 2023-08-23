@@ -77,7 +77,8 @@ def verify_certificate(cabundle, certificate):
     print(certificate)
     try:
         _PEM_RE = re.compile(
-            '-----BEGIN CERTIFICATE-----\r?.+?\r?-----END CERTIFICATE-----\r?\n?', re.DOTALL)
+            '-----BEGIN CERTIFICATE-----\r?.+?\r?'+
+            '-----END CERTIFICATE-----\r?\n?', re.DOTALL)
 
         def parse_chain(chain):
             # returns a list of certificates
@@ -94,8 +95,7 @@ def verify_certificate(cabundle, certificate):
 
         ctx = OpenSSL.crypto.X509StoreContext(store, client_cert)
         ctx.verify_certificate()
-    except OpenSSL.crypto.X509StoreContextError as e:
-        # raise e
+    except OpenSSL.crypto.X509StoreContextError:
         raise CertificateError('invalid certificate verification chain')
     except OpenSSL.crypto.Error:
         raise CertificateError('invalid certificate')
@@ -263,7 +263,7 @@ def upload_main_cert(user):
 
     if certificate is None and cabundle is None:
         return 'requests missing certificate or cabundle', 400
-    
+
     if cabundle is None:
         cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
     if certificate is None:
