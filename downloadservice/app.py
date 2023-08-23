@@ -82,6 +82,8 @@ def verify_certificate(cabundle, certificate):
 
         client_cert = OpenSSL.crypto.load_certificate(
             OpenSSL.crypto.FILETYPE_PEM, certificate)
+        if client_cert.has_expired():
+            raise CertificateError("certificate expired")
 
         store = OpenSSL.crypto.X509Store()
         for cert in parse_chain(cabundle):

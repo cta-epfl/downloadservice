@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime, timedelta
 import hashlib
 import os
 import psutil
@@ -56,12 +57,25 @@ def tmp_certificate(duration):
         user_csr_file = tmpdir+'/request.csr'
         os.system('openssl req -new -batch -key ' + user_key_file +
                   ' -out ' + user_csr_file)
-        user_cert = os.popen('openssl x509 -req' +
-                             ' -in ' + user_csr_file +
-                             ' -CA ' + root_crt_file +
-                             ' -CAkey ' + root_key_file +
-                             ' -CAcreateserial' +
-                             ' -days "'+str(duration)+'"').read()
+
+        if duration < 0:
+            date = (datetime.today()+timedelta(days=duration-1))\
+                .strftime("%Y-%m-%d %H:%M:%S")
+            user_cert = os.popen('faketime "' + str(date) + '"' +
+                                 ' openssl x509 -req' +
+                                 ' -in ' + user_csr_file +
+                                 ' -CA ' + root_crt_file +
+                                 ' -CAkey ' + root_key_file +
+                                 ' -CAcreateserial' +
+                                 ' -days 1').read()
+        else:
+            user_cert = os.popen('openssl x509 -req' +
+                                 ' -in ' + user_csr_file +
+                                 ' -CA ' + root_crt_file +
+                                 ' -CAkey ' + root_key_file +
+                                 ' -CAcreateserial' +
+                                 ' -days '+str(duration)).read()
+
         return ca_bundle, user_cert
 
 
