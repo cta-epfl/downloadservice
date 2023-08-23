@@ -45,7 +45,8 @@ def tmp_certificate(duration):
         root_crt_file = tmpdir+'/rootCA.crt'
         os.system('openssl req -x509 -new -batch -nodes -key '+root_key_file +
                   ' -sha256 -days 365 -out ' + root_crt_file +
-                  ' -subj "/C=CH/ST=Lausanne/L=Lausanne/O=EPFL/OU=LASTRO/CN=lastro.epfl.ch"')
+                  ' -subj "/C=CH/ST=Lausanne/L=Lausanne/O=EPFL' +
+                  '/OU=LASTRO/CN=lastro.epfl.ch"')
         ca_bundle = open(root_crt_file).read()
 
         # User key
