@@ -1,4 +1,4 @@
-from conftest import upstream_webdav_server, tmp_certificate
+from conftest import upstream_webdav_server, ca_certificate, sign_certificate
 from flask import url_for
 import pytest
 from typing import Any
@@ -7,8 +7,7 @@ from typing import Any
 @pytest.mark.timeout(30)
 def test_valid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
-        ca_bundle, certificate = tmp_certificate(1)
-        open(app.config['CTADS_CABUNDLE'], 'w').write(ca_bundle)
+        certificate = sign_certificate(app.ca, 1)
         r = client.post(url_for('upload_cert'), json={
             'certificate': certificate})
         assert r.status_code == 200
@@ -17,25 +16,25 @@ def test_valid_owncert_config(app: Any, client: Any):
 @pytest.mark.timeout(30)
 def test_invalid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
-        _, certificate = tmp_certificate(1)
-        r = client.post(url_for('upload_cert'), json={
-            'certificate': certificate})
-        assert r.status_code == 400 and \
-            r.text == 'invalid certificate verification chain'
+        with ca_certificate() as alt_ca:
+            certificate = sign_certificate(alt_ca, 1)
+            r = client.post(url_for('upload_cert'), json={
+                'certificate': certificate})
+            assert r.status_code == 400 and \
+                r.text == 'invalid certificate verification chain'
 
 
 @pytest.mark.timeout(30)
 def test_expired_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
-        ca_bundle, certificate = tmp_certificate(-1)
-        open(app.config['CTADS_CABUNDLE'], 'w').write(ca_bundle)
+        certificate = sign_certificate(app.ca, -1)
         r = client.post(url_for('upload_cert'), json={
                         'certificate': certificate})
         assert r.status_code == 400 and \
-            r.text == 'certificate expired'
+            r.text == 'invalid certificate verification chain'
 
 
-@ pytest.mark.timeout(30)
+@pytest.mark.timeout(30)
 def test_fake_owncert_config(app: Any, client: Any):
     with upstream_webdav_server() as (server_dir, _):
         certificate = 'fake certificate string'
@@ -45,60 +44,58 @@ def test_fake_owncert_config(app: Any, client: Any):
             r.text.startswith('invalid certificate : ')
 
 
-@ pytest.mark.timeout(30)
-def test_valid_maincert_config(app: Any, client: Any):
-    with upstream_webdav_server():
-        ca_bundle, certificate = tmp_certificate(1)
-        r = client.post(
-            url_for('upload_main_cert'),
-            json={
-                'certificate': certificate,
-                'cabundle': ca_bundle
-            }
-        )
-        assert r.status_code == 200
-
-
-@ pytest.mark.timeout(30)
+@pytest.mark.timeout(30)
 def test_invalid_chain_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
-        _, certificate = tmp_certificate(1)
-        r = client.post(
-            url_for('upload_main_cert'),
-            json={
-                'certificate': certificate,
-            }
-        )
-        assert r.status_code == 400 and \
-            r.text == 'invalid certificate verification chain'
+        with ca_certificate() as alt_ca:
+            certificate = sign_certificate(alt_ca, 1)
+            r = client.post(
+                url_for('upload_main_cert'),
+                json={
+                    'certificate': certificate,
+                }
+            )
+            assert r.status_code == 400 and \
+                r.text == 'invalid certificate verification chain'
 
 
-@ pytest.mark.timeout(30)
-def test_invalid_maincert_config(app: Any, client: Any):
+@pytest.mark.timeout(30)
+def test_new_cert_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
-        ca_bundle, certificate = tmp_certificate(1)
+        certificate = sign_certificate(app.ca, 1)
         r = client.post(
             url_for('upload_main_cert'),
-            json={
-                'certificate': certificate,
-                'cabundle': ca_bundle
-            }
+            json={'certificate': certificate}
         )
         assert r.status_code == 200
 
 
-@ pytest.mark.timeout(30)
+@pytest.mark.timeout(30)
 def test_original_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
-        ca_bundle, certificate = tmp_certificate(365)
+        certificate = sign_certificate(app.ca, 365)
         r = client.post(
             url_for('upload_main_cert'),
             json={
                 'certificate': certificate,
-                'cabundle': ca_bundle
             }
         )
         assert r.status_code == 400 and r.text == \
             'certificate validity too long, please generate a ' +\
             'short-lived (max 7 day) proxy certificate for uploading. ' +\
             'Please see https://ctaodc.ch/ for more details.'
+
+
+@pytest.mark.timeout(30)
+def test_valid_maincert_config(app: Any, client: Any):
+    with upstream_webdav_server():
+        with ca_certificate() as alt_ca:
+            certificate = sign_certificate(alt_ca, 1)
+            r = client.post(
+                url_for('upload_main_cert'),
+                json={
+                    'certificate': certificate,
+                    'cabundle': open(alt_ca['crt_file'], 'r').read()
+                }
+            )
+            assert r.status_code == 200
