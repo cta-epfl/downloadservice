@@ -158,7 +158,7 @@ def testing_download_service(pytestconfig):
 
         ca_bundle, certificate = tmp_certificate(1)
         open(f'{tmpdir}/cabundle.pem', 'w').write(ca_bundle)
-        open(f'{tmpdir}/cliencert.crt', 'w').write(certificate)
+        open(f'{tmpdir}/clientcert.crt', 'w').write(certificate)
 
         rootdir = pytestconfig.rootdir
 
