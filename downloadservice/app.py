@@ -1,3 +1,7 @@
+from datetime import date, datetime, timedelta
+from downloadservice.certificate import (
+    CertificateError, certificate_validity, verify_certificate
+)
 from functools import wraps
 import os
 import io
@@ -7,7 +11,6 @@ import requests
 import secrets
 import xml.etree.ElementTree as ET
 import importlib.metadata
-
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,
     session, stream_with_context, render_template
@@ -74,6 +77,8 @@ def create_app():
     app.config['OIDC_COOKIE_SECURE'] = False
     app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
     app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
+    app.config['CTADS_CERTIFICATE_DIR'] = \
+        os.environ.get('CTADS_CERTIFICATE_DIR', './certificate/')
     app.config['CTADS_CABUNDLE'] = \
         os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
     app.config['CTADS_CLIENTCERT'] = \
@@ -90,10 +95,34 @@ def create_app():
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
 
+    # Check certificate folder
+    os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exist_ok=True)
+
+    # Check certificates and their validity on startup
+    cabundle_file = app.config['CTADS_CABUNDLE']
+    cert_file = app.config['CTADS_CLIENTCERT']
+    try:
+        cabundle = open(cabundle_file, 'r').read()
+        with open(cert_file, 'r') as f:
+            certificate = f.read()
+            verify_certificate(cabundle, certificate)
+            if certificate_validity(certificate) <= datetime.now():
+                logger.warning('Configured certificate expired')
+    except FileNotFoundError:
+        logger.warning('No configured certificate')
+    except CertificateError:
+        logger.warning('Invalid configured certificate')
+
     return app
 
 
 app = create_app()
+
+
+@app.errorhandler(CertificateError)
+def handle_bad_request(e):
+    sentry_sdk.capture_exception(e)
+    return e.message, 400
 
 
 def authenticated(f):
@@ -101,12 +130,10 @@ def authenticated(f):
     # in the future, the check will be done with rucio maybe
     """Decorator for authenticating with the Hub via OAuth"""
 
-    print('authenticated check:', app.config)
-
     @wraps(f)
     def decorated(*args, **kwargs):
         if app.config['CTADS_DISABLE_ALL_AUTH']:
-            return f('anonymous', *args, **kwargs)
+            return f({'name': 'anonymous', 'admin': True}, *args, **kwargs)
         else:
             if auth is None:
                 return 'Unable to use jupyterhub to verify access to this\
@@ -145,13 +172,6 @@ def authenticated(f):
     return decorated
 
 
-# @app.before_request
-# def clear_trailing():
-#     rp = request.path
-#     if rp != '/' and rp.endswith('/'):
-#         logger.warning('redirect %s', rp[:-1])
-#         return redirect(rp[:-1])
-
 @app.route(url_prefix + '/')
 @authenticated
 def login(user):
@@ -159,10 +179,101 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
-def get_upstream_session():
+@app.route(url_prefix + '/upload-cert', methods=['POST'])
+@authenticated
+def upload_cert(user):
+    filename = user_to_path_fragment(user) + ".crt"
+    certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
+
+    certificate = request.json.get('certificate')
+
+    cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
+    verify_certificate(cabundle, certificate)
+
+    validity = certificate_validity(certificate)
+    if validity.date() > date.today()+timedelta(days=7):
+        return 'certificate validity too long, please generate a ' +\
+            'short-lived (max 7 day) proxy certificate for uploading. ' +\
+            'Please see https://ctaodc.ch/ for more details.', 400
+    if validity <= datetime.today():
+        return 'certificate expired', 400
+
+    with open(certificate_file, 'w') as f:
+        f.write(certificate)
+
+    return {'message': 'Certificate stored', 'validity': validity}, 200
+
+
+@app.route(url_prefix + '/upload-main-cert', methods=['POST'])
+@authenticated
+def upload_main_cert(user):
+    if not isinstance(user, dict) or user['admin'] is not True:
+        return 'access denied', 401
+
+    data = request.json
+    certificate = data.get('certificate', None)
+    cabundle = data.get('cabundle', None)
+
+    if certificate is None and cabundle is None:
+        return 'requests missing certificate or cabundle', 400
+
+    if cabundle is None:
+        cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
+    if certificate is None:
+        certificate = open(app.config['CTADS_CLIENTCERT'], 'r').read()
+    verify_certificate(cabundle, certificate)
+
+    if certificate and certificate_validity(certificate).date() > \
+            (date.today()+timedelta(days=7)):
+        return 'certificate validity too long, please generate a ' +\
+            'short-lived (max 7 day) proxy certificate for uploading. ' +\
+            'Please see https://ctaodc.ch/ for more details.', 400
+
+    updated = set()
+    if certificate is not None:
+        with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
+            f.write(certificate)
+            updated.add('Certificate')
+    if cabundle is not None:
+        with open(app.config['CTADS_CABUNDLE'], 'w') as f:
+            f.write(cabundle)
+            updated.add('CABundle')
+
+    return {
+        'message': ' and '.join(updated) + ' stored',
+        'cabundleUploaded': cabundle is not None,
+        'certificateUploaded': certificate is not None,
+    }, 200
+
+
+def get_upstream_session(user=None):
     session = requests.Session()
-    session.verify = app.config['CTADS_CABUNDLE']
-    session.cert = app.config['CTADS_CLIENTCERT']
+
+    cert = app.config['CTADS_CLIENTCERT']
+    own_certificate = False
+    if user is not None:
+        filename = user_to_path_fragment(user) + ".crt"
+        own_certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
+
+        if os.path.isfile(own_certificate_file):
+            own_certificate = True
+            cert = own_certificate_file
+
+    try:
+        with open(cert, 'r') as f:
+            certificate = f.read()
+            if certificate_validity(certificate) <= datetime.now():
+                if own_certificate:
+                    raise 'Your configured certificate is invalid, ' + \
+                        'please refresh it.'
+                else:
+                    logger.exception('outdated main certificate')
+                    raise 'Service certificate invalid please contact us.'
+
+            session.verify = app.config['CTADS_CABUNDLE']
+            session.cert = cert
+    except FileNotFoundError:
+        raise CertificateError('no valid certificate configured')
 
     return session
 
@@ -184,11 +295,9 @@ def health():
             return 'Unhealthy!', 500
     except requests.exceptions.ReadTimeout as e:
         logger.error('service is unhealthy: %s', e)
+        sentry_sdk.capture_exception(e)
         return 'Unhealthy!', 500
 
-
-# @oidc.require_login
-# @oidc.accept_token(require_token=True)
 
 @app.route(url_prefix + '/list', methods=['GET', 'POST'],
            defaults={'path': ''})
@@ -203,7 +312,7 @@ def list(user, path):
         (path or '')
     )
 
-    upstream_session = get_upstream_session()
+    upstream_session = get_upstream_session(user)
 
     r = upstream_session.request(
         'PROPFIND', upstream_url, headers={'Depth': '1'})
@@ -275,7 +384,7 @@ def fetch(user, path):
 
     logger.info('fetching upstream url %s', url)
 
-    upstream_session = get_upstream_session()
+    upstream_session = get_upstream_session(user)
 
     def generate():
         with upstream_session.get(url, stream=True) as f:
@@ -326,7 +435,7 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    upstream_session = get_upstream_session()
+    upstream_session = get_upstream_session(user)
 
     r = upstream_session.request('MKCOL', baseurl)
 
@@ -340,7 +449,6 @@ def upload(user, path):
             yield r
 
     r = upstream_session.put(url, data=generate(stats))
-    # r = upstream_session.put(url, stream=True, data=request.stream)
 
     logger.info('%s %s %s', url, r, r.text)
 
@@ -420,7 +528,8 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    upstream_session = get_upstream_session()
+    upstream_session = get_upstream_session(user)
+
     res = upstream_session.request(
         method=request.method,
         url=urljoin_multipart(API_HOST, path),
