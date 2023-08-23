@@ -71,13 +71,9 @@ default_chunk_size = 10 * 1024 * 1024
 
 
 def verify_certificate(cabundle, certificate):
-    print("--------------------------CALLED WITH")
-    print(cabundle)
-    print("--------------------------HUM")
-    print(certificate)
     try:
         _PEM_RE = re.compile(
-            '-----BEGIN CERTIFICATE-----\r?.+?\r?'+
+            '-----BEGIN CERTIFICATE-----\r?.+?\r?' +
             '-----END CERTIFICATE-----\r?\n?', re.DOTALL)
 
         def parse_chain(chain):
@@ -89,7 +85,6 @@ def verify_certificate(cabundle, certificate):
 
         store = OpenSSL.crypto.X509Store()
         for cert in parse_chain(cabundle):
-            print("LOADED CERTIFICATE !!!")
             store.add_cert(OpenSSL.crypto.load_certificate(
                 OpenSSL.crypto.FILETYPE_PEM, cert))
 
@@ -97,8 +92,8 @@ def verify_certificate(cabundle, certificate):
         ctx.verify_certificate()
     except OpenSSL.crypto.X509StoreContextError:
         raise CertificateError('invalid certificate verification chain')
-    except OpenSSL.crypto.Error:
-        raise CertificateError('invalid certificate')
+    except OpenSSL.crypto.Error as e:
+        raise CertificateError('invalid certificate : '+str(e))
 
 
 def certificate_validity(certificate):
@@ -174,8 +169,6 @@ def authenticated(f):
     # TODO: here do a permission check;
     # in the future, the check will be done with rucio maybe
     """Decorator for authenticating with the Hub via OAuth"""
-
-    print('authenticated check:', app.config)
 
     @wraps(f)
     def decorated(*args, **kwargs):

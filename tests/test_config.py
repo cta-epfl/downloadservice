@@ -78,7 +78,6 @@ def test_original_maincert_config(app: Any, client: Any):
                     'cabundle': ca_bundle
                 }
             )
-            print(r.text)
             assert r.status_code == 400 and r.text == \
                 'certificate validity too long, please generate a ' +\
                 'short-lived (max 7 day) proxy certificate for uploading. ' +\
