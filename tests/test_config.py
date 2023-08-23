@@ -4,7 +4,7 @@ import pytest
 from typing import Any
 
 
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(10)
 def test_valid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
@@ -15,7 +15,7 @@ def test_valid_owncert_config(app: Any, client: Any):
             assert r.status_code == 200
 
 
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(10)
 def test_invalid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
@@ -26,7 +26,7 @@ def test_invalid_owncert_config(app: Any, client: Any):
                 r.text == 'invalid certificate verification chain'
 
 
-# @pytest.mark.timeout(30)
+# @pytest.mark.timeout(10)
 # def test_expired_owncert_config(app: Any, client: Any):
 #     with upstream_webdav_server():
 #         with app.app_context():
@@ -36,7 +36,7 @@ def test_invalid_owncert_config(app: Any, client: Any):
 #             assert r.status_code == 400
 
 
-@ pytest.mark.timeout(30)
+@ pytest.mark.timeout(10)
 def test_fake_owncert_config(app: Any, client: Any):
     with upstream_webdav_server() as (server_dir, _):
         with app.app_context():
@@ -47,7 +47,7 @@ def test_fake_owncert_config(app: Any, client: Any):
                 r.text.startswith('invalid certificate : ')
 
 
-@ pytest.mark.timeout(30)
+@ pytest.mark.timeout(10)
 def test_valid_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
@@ -62,7 +62,7 @@ def test_valid_maincert_config(app: Any, client: Any):
             assert r.status_code == 200
 
 
-@ pytest.mark.timeout(30)
+@ pytest.mark.timeout(10)
 def test_selfsigned_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
@@ -77,7 +77,7 @@ def test_selfsigned_maincert_config(app: Any, client: Any):
                 r.text == 'invalid certificate verification chain'
 
 
-@ pytest.mark.timeout(30)
+@ pytest.mark.timeout(10)
 def test_invalid_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
@@ -92,7 +92,7 @@ def test_invalid_maincert_config(app: Any, client: Any):
             assert r.status_code == 200
 
 
-@ pytest.mark.timeout(30)
+@ pytest.mark.timeout(10)
 def test_original_maincert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with app.app_context():
