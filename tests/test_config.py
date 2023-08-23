@@ -15,6 +15,17 @@ def test_valid_owncert_config(app: Any, client: Any):
             assert r.status_code == 200
 
 
+@pytest.mark.timeout(30)
+def test_invalid_owncert_config(app: Any, client: Any):
+    with upstream_webdav_server():
+        with app.app_context():
+            _, certificate = tmp_certificate(1)
+            r = client.post(url_for('upload_cert'), json={
+                'certificate': certificate})
+            assert r.status_code == 400 and \
+                r.text == 'invalid certificate verification chain'
+
+
 # @pytest.mark.timeout(30)
 # def test_expired_owncert_config(app: Any, client: Any):
 #     with upstream_webdav_server():
@@ -26,7 +37,7 @@ def test_valid_owncert_config(app: Any, client: Any):
 
 
 @ pytest.mark.timeout(30)
-def test_invalid_owncert_config(app: Any, client: Any):
+def test_fake_owncert_config(app: Any, client: Any):
     with upstream_webdav_server() as (server_dir, _):
         with app.app_context():
             certificate = 'fake certificate string'
@@ -49,6 +60,21 @@ def test_valid_maincert_config(app: Any, client: Any):
                 }
             )
             assert r.status_code == 200
+
+
+@ pytest.mark.timeout(30)
+def test_selfsigned_maincert_config(app: Any, client: Any):
+    with upstream_webdav_server():
+        with app.app_context():
+            _, certificate = tmp_certificate(1)
+            r = client.post(
+                url_for('upload_main_cert'),
+                json={
+                    'certificate': certificate,
+                }
+            )
+            assert r.status_code == 400 and \
+                r.text == 'invalid certificate verification chain'
 
 
 @ pytest.mark.timeout(30)
