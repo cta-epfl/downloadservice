@@ -176,11 +176,11 @@ def testing_download_service(pytestconfig):
 
             env = copy.deepcopy(dict(os.environ))
             print(("rootdir", str(rootdir)))
-            env['PYTHONPATH'] = str(rootdir) + ":" + str(rootdir) + "/tests:" + \
-                str(rootdir) + '/bin:' + \
-                __this_dir__ + ":" + os.path.join(__this_dir__, "../bin:") + \
+            env['PYTHONPATH'] = str(rootdir)+":"+str(rootdir)+"/tests:" + \
+                str(rootdir)+'/bin:' + \
+                __this_dir__+":"+os.path.join(__this_dir__, "../bin:") + \
                 env.get('PYTHONPATH', "")
-            
+
             env['CTADS_DISABLE_ALL_AUTH'] = 'True'
             env["CTADS_CABUNDLE"] = ca['crt_file']
             env["CTADS_CLIENTCERT"] = client_cert_file
