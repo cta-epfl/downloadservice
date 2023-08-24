@@ -31,7 +31,20 @@ def test_apiclient_list(testing_download_service):
 
 
 @pytest.mark.timeout(30)
-def test_apiclient_upload_cert(testing_download_service):
+def test_apiclient_webdav4_client(testing_download_service):
+    with upstream_webdav_server():
+        ctadata.APIClient.downloadservice = testing_download_service['url']
+        ctadata.APIClient.token = "faketoken"
+
+        client = ctadata.webdav4_client()
+        res = client.ls("lst", detail=True)
+        assert len(res) == 1
+        assert res[0]['href'] == "/webdav/lst/users/"
+        assert res[0]['type'] == "directory"
+
+
+@pytest.mark.timeout(30)
+def test_apiclient_upload_certificate(testing_download_service):
     with upstream_webdav_server():
         ctadata.APIClient.downloadservice = testing_download_service['url']
 
