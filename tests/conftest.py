@@ -242,7 +242,8 @@ def testing_download_service(pytestconfig):
 
             yield dict(
                 url=service,
-                pid=p.pid
+                pid=p.pid,
+                ca=ca,
             )
 
             kill_child_processes(p.pid, signal.SIGINT)

@@ -1,4 +1,10 @@
-from conftest import upstream_webdav_server, hash_file, generate_random_file
+from conftest import (
+    upstream_webdav_server,
+    hash_file,
+    generate_random_file,
+    ca_certificate,
+    sign_certificate
+)
 import logging
 import os
 import tempfile
@@ -22,6 +28,38 @@ def test_apiclient_list(testing_download_service):
 
         expected = ['lst/', 'lst/users/']
         assert set([entry['href'] for entry in r]) == set(expected)
+
+
+@pytest.mark.timeout(30)
+def test_apiclient_upload_cert(testing_download_service):
+    with upstream_webdav_server():
+        ctadata.APIClient.downloadservice = testing_download_service['url']
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cert_file = f"{tmpdir}/cert-file"
+            certificate = sign_certificate(testing_download_service['ca'], 1)
+            open(cert_file, 'w').write(certificate)
+            res = ctadata.upload_certificate(cert_file)
+            assert type(res) == dict and \
+                res['message'] is not None and res['validity'] is not None
+
+
+@pytest.mark.timeout(30)
+def test_apiclient_upload_admin_cert(testing_download_service):
+    with upstream_webdav_server():
+        ctadata.APIClient.downloadservice = testing_download_service['url']
+
+        with ca_certificate() as alt_ca:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                cert_file = f"{tmpdir}/cert-file"
+                certificate = sign_certificate(alt_ca, 1)
+                open(cert_file, 'w').write(certificate)
+                res = ctadata.upload_admin_certificate(
+                    certificate_file=cert_file,
+                    cabundle_file=alt_ca['crt_file'],
+                )
+            assert type(res) == dict and res['message'] is not None and \
+                res['cabundleUploaded'] == True and res['certificateUploaded']
 
 
 @pytest.mark.timeout(30)
