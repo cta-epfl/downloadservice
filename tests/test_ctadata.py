@@ -53,7 +53,7 @@ def test_apiclient_upload_certificate(testing_download_service):
             certificate = sign_certificate(testing_download_service['ca'], 1)
             open(cert_file, 'w').write(certificate)
             res = ctadata.upload_certificate(cert_file)
-            assert type(res) == dict and \
+            assert type(res) is dict and \
                 res['message'] is not None and res['validity'] is not None
 
 
@@ -71,9 +71,9 @@ def test_apiclient_upload_admin_cert(testing_download_service):
                     certificate_file=cert_file,
                     cabundle_file=alt_ca['crt_file'],
                 )
-            assert type(res) == dict and res['message'] is not None and \
-                res['cabundleUploaded'] == True and \
-                res['certificateUploaded'] == True
+            assert type(res) is dict and res['message'] is not None and \
+                res['cabundleUploaded'] is True and \
+                res['certificateUploaded'] is True
 
 
 @pytest.mark.timeout(30)
