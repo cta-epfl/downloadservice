@@ -59,7 +59,8 @@ def test_apiclient_upload_admin_cert(testing_download_service):
                     cabundle_file=alt_ca['crt_file'],
                 )
             assert type(res) == dict and res['message'] is not None and \
-                res['cabundleUploaded'] == True and res['certificateUploaded']
+                res['cabundleUploaded'] == True and \
+                res['certificateUploaded'] == True
 
 
 @pytest.mark.timeout(30)
