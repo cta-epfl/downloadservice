@@ -1,25 +1,24 @@
-from datetime import date, datetime, timedelta
+from sentry_sdk.integrations.flask import FlaskIntegration
+import sentry_sdk
+import logging
+from flask import (
+    Blueprint, Flask, Response, jsonify, make_response, redirect, request,
+    session, stream_with_context, render_template,
+)
+import importlib.metadata
+import xml.etree.ElementTree as ET
+import secrets
+import requests
+from urllib.parse import urlparse
+import re
+import io
+import os
+from functools import wraps
 from downloadservice.certificate import (
     CertificateError, certificate_validity, verify_certificate
 )
-from functools import wraps
-import os
-import io
-import re
-from urllib.parse import urlparse
-import requests
-import secrets
-import xml.etree.ElementTree as ET
-import importlib.metadata
-from flask import (
-    Blueprint, Flask, Response, jsonify, make_response, redirect, request,
-    session, stream_with_context, render_template
-)
+from datetime import date, datetime, timedelta
 
-import logging
-
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
 
 sentry_sdk.init(
     dsn='https://452458c2a6630292629364221bff0dee@o4505709665976320\
@@ -149,7 +148,6 @@ def authenticated(f):
             token = session.get('token') \
                 or request.args.get('token') \
                 or header_token
-
             if token:
                 user = auth.user_for_token(token)
                 if user is not None and not auth.check_scopes(
@@ -264,11 +262,14 @@ def get_upstream_session(user=None):
             certificate = f.read()
             if certificate_validity(certificate) <= datetime.now():
                 if own_certificate:
-                    raise 'Your configured certificate is invalid, ' + \
+                    raise CertificateError(
+                        'Your configured certificate is invalid, ' +
                         'please refresh it.'
+                    )
                 else:
                     logger.exception('outdated main certificate')
-                    raise 'Service certificate invalid please contact us.'
+                    raise CertificateError(
+                        'Service certificate invalid please contact us.')
 
             session.verify = app.config['CTADS_CABUNDLE']
             session.cert = cert
@@ -399,7 +400,7 @@ def fetch(user, path):
 
 
 def user_to_path_fragment(user):
-    if isinstance(user, dict):
+    if not isinstance(user, str):
         user = user['name']
 
     return re.sub('[^0-1a-z]', '_', user.lower())

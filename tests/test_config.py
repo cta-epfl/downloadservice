@@ -8,8 +8,11 @@ from typing import Any
 def test_valid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         certificate = sign_certificate(app.ca, 1)
-        r = client.post(url_for('upload_cert'), json={
-            'certificate': certificate})
+        r = client.post(
+            url_for('upload_cert'),
+            json={'certificate': certificate},
+            headers={'authorization': 'Bearer fake'}
+        )
         assert r.status_code == 200
 
 
@@ -18,8 +21,11 @@ def test_invalid_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         with ca_certificate() as alt_ca:
             certificate = sign_certificate(alt_ca, 1)
-            r = client.post(url_for('upload_cert'), json={
-                'certificate': certificate})
+            r = client.post(
+                url_for('upload_cert'),
+                json={'certificate': certificate},
+                headers={'authorization': 'Bearer fake'}
+            )
             assert r.status_code == 400 and \
                 r.text == 'invalid certificate verification chain'
 
@@ -28,8 +34,11 @@ def test_invalid_owncert_config(app: Any, client: Any):
 def test_expired_owncert_config(app: Any, client: Any):
     with upstream_webdav_server():
         certificate = sign_certificate(app.ca, -1)
-        r = client.post(url_for('upload_cert'), json={
-                        'certificate': certificate})
+        r = client.post(
+            url_for('upload_cert'),
+            json={'certificate': certificate},
+            headers={'authorization': 'Bearer fake'}
+        )
         assert r.status_code == 400 and \
             r.text == 'invalid certificate verification chain'
 
@@ -38,8 +47,11 @@ def test_expired_owncert_config(app: Any, client: Any):
 def test_fake_owncert_config(app: Any, client: Any):
     with upstream_webdav_server() as (server_dir, _):
         certificate = 'fake certificate string'
-        r = client.post(url_for('upload_cert'), json={
-            'certificate': certificate})
+        r = client.post(
+            url_for('upload_cert'),
+            json={'certificate': certificate},
+            headers={'authorization': 'Bearer fake'}
+        )
         assert r.status_code == 400 and \
             r.text.startswith('invalid certificate : ')
 
@@ -51,9 +63,8 @@ def test_invalid_chain_maincert_config(app: Any, client: Any):
             certificate = sign_certificate(alt_ca, 1)
             r = client.post(
                 url_for('upload_main_cert'),
-                json={
-                    'certificate': certificate,
-                }
+                json={'certificate': certificate},
+                headers={'authorization': 'Bearer fake'}
             )
             assert r.status_code == 400 and \
                 r.text == 'invalid certificate verification chain'
@@ -65,7 +76,8 @@ def test_new_cert_maincert_config(app: Any, client: Any):
         certificate = sign_certificate(app.ca, 1)
         r = client.post(
             url_for('upload_main_cert'),
-            json={'certificate': certificate}
+            json={'certificate': certificate},
+            headers={'authorization': 'Bearer fake'}
         )
         assert r.status_code == 200
 
@@ -76,9 +88,8 @@ def test_original_maincert_config(app: Any, client: Any):
         certificate = sign_certificate(app.ca, 365)
         r = client.post(
             url_for('upload_main_cert'),
-            json={
-                'certificate': certificate,
-            }
+            json={'certificate': certificate},
+            headers={'authorization': 'Bearer fake'}
         )
         assert r.status_code == 400 and r.text == \
             'certificate validity too long, please generate a ' +\
@@ -96,6 +107,7 @@ def test_valid_maincert_config(app: Any, client: Any):
                 json={
                     'certificate': certificate,
                     'cabundle': open(alt_ca['crt_file'], 'r').read()
-                }
+                },
+                headers={'authorization': 'Bearer fake'}
             )
             assert r.status_code == 200
