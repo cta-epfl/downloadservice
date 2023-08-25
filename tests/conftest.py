@@ -11,6 +11,10 @@ import tempfile
 import time
 from threading import Thread
 
+from flask import request
+
+from unittest.mock import MagicMock, Mock, patch
+
 from contextlib import contextmanager
 from wsgidav.wsgidav_app import WsgiDAVApp
 from cheroot import wsgi
@@ -87,30 +91,36 @@ def sign_certificate(ca, duration):
 
 @pytest.fixture(scope="session")
 def app():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        from downloadservice.app import app
+    with patch('jupyterhub.services.auth.HubOAuth') as mock_auth:
+        os.environ['JUPYTERHUB_API_TOKEN'] = 'fake_api_token'
+        instance = mock_auth.return_value
+        user = {'name': 'anonymous', 'admin': True}
+        instance.user_for_token.return_value = user
+        instance.check_scopes.return_value = True
 
         with ca_certificate() as ca:
-            certificate = sign_certificate(ca, 1)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                certificate = sign_certificate(ca, 1)
+                client_cert_file = f'{tmpdir}/clientcert.crt'
+                open(client_cert_file, 'w').write(certificate)
 
-            client_cert_file = f'{tmpdir}/clientcert.crt'
-            open(client_cert_file, 'w').write(certificate)
+                from downloadservice.app import app
+                app.config.update({
+                    "TESTING": True,
+                    "CTADS_DISABLE_ALL_AUTH": True,
+                    "DEBUG": True,
+                    "CTADS_CABUNDLE": ca['crt_file'],
+                    "CTADS_CLIENTCERT": client_cert_file,
+                    'CTADS_UPSTREAM_ENDPOINT':
+                        f'http://{webdav_server_host}:' +
+                        f'{str(webdav_server_port)}/',
+                    'CTADS_UPSTREAM_BASEPATH': '',
+                    "SERVER_NAME": 'app',
+                })
 
-            app.config.update({
-                "TESTING": True,
-                "CTADS_DISABLE_ALL_AUTH": True,
-                "DEBUG": True,
-                "CTADS_CABUNDLE": ca['crt_file'],
-                "CTADS_CLIENTCERT": client_cert_file,
-                'CTADS_UPSTREAM_ENDPOINT':
-                    f'http://{webdav_server_host}:{str(webdav_server_port)}/',
-                'CTADS_UPSTREAM_BASEPATH': '',
-                "SERVER_NAME": 'app',
-            })
+                app.ca = ca
 
-            app.ca = ca
-
-            yield app
+                yield app
 
 
 @contextmanager
@@ -162,10 +172,32 @@ def kill_child_processes(parent_pid, sig=signal.SIGINT):
         return
 
 
-@pytest.fixture
-def testing_download_service(pytestconfig):
-    with tempfile.TemporaryDirectory() as tmpdir:
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
 
+
+@pytest.fixture
+def testing_download_service(pytestconfig, app):
+    # @app.route('/shutdown', methods=('POST',))
+    # def shutdown():
+    #     shutdown_server()
+    #     return 'Shutting down server ...'
+
+    # import threading
+    # t = threading.Thread(target=app.run)
+    # t.start()
+
+    # yield {
+    #     "url": "http://localhost:5000",
+    # }
+
+    # import requests
+    # requests.post('http://localhost:5000/shutdown')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
         with ca_certificate() as ca:
             certificate = sign_certificate(ca, 1)
 
@@ -176,13 +208,13 @@ def testing_download_service(pytestconfig):
 
             env = copy.deepcopy(dict(os.environ))
             print(("rootdir", str(rootdir)))
-            env['PYTHONPATH'] = str(rootdir)+":"+str(rootdir)+"/tests:" + \
-                str(rootdir)+'/bin:' + \
-                __this_dir__+":"+os.path.join(__this_dir__, "../bin:") + \
+            env['PYTHONPATH'] = str(rootdir) + ":" + str(rootdir) + \
+                "/tests:" + str(rootdir) + '/bin:' + \
+                __this_dir__ + ":" + os.path.join(__this_dir__, "../bin:") + \
                 env.get('PYTHONPATH', "")
 
-            env['CTADS_DISABLE_ALL_AUTH'] = 'True'
             env["CTADS_CABUNDLE"] = ca['crt_file']
+            env["CTADS_DISABLE_ALL_AUTH"] = 'True'
             env["CTADS_CLIENTCERT"] = client_cert_file
             env['CTADS_UPSTREAM_ENDPOINT'] = \
                 f'http://{webdav_server_host}:{str(webdav_server_port)}/'
