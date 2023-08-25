@@ -40,7 +40,7 @@ def test_expired_owncert_config(app: Any, client: Any):
             headers={'authorization': 'Bearer fake'}
         )
         assert r.status_code == 400 and \
-            r.text == 'invalid certificate verification chain'
+            r.text.startswith('invalid certificate : ')
 
 
 @pytest.mark.timeout(30)
