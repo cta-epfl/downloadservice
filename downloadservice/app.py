@@ -122,7 +122,7 @@ app = create_app()
 @app.errorhandler(CertificateError)
 def handle_bad_request(e):
     sentry_sdk.capture_exception(e)
-    return e.message, 400
+    return e.message, 500
 
 
 def authenticated(f):
@@ -142,7 +142,7 @@ def authenticated(f):
 
             header = request.headers.get('Authorization')
             if header and header.startswith('Bearer '):
-                header_token = header.split()[1]
+                header_token = header.removeprefix('Bearer ')
             else:
                 header_token = None
 
@@ -154,7 +154,7 @@ def authenticated(f):
                 user = auth.user_for_token(token)
                 if user is not None and not auth.check_scopes(
                         'access:services!service=downloadservice', user):
-                    user = None
+                    return 'Access denied, token scopes are insuficient', 403
             else:
                 user = None
 
@@ -187,7 +187,11 @@ def upload_cert(user):
 
     certificate = request.json.get('certificate')
 
-    cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
+    try:
+        cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
+    except FileNotFoundError:
+        return 'DownloadService cabundle not configured, ' + \
+            'please contact the administrator', 500
     verify_certificate(cabundle, certificate)
 
     validity = certificate_validity(certificate)
