@@ -23,11 +23,13 @@ def verify_certificate(cabundle, certificate):
             OpenSSL.crypto.FILETYPE_PEM, certificate)
 
         store = OpenSSL.crypto.X509Store()
+        store.set_flags(OpenSSL.crypto.X509StoreFlags.ALLOW_PROXY_CERTS)
         for cert in parse_chain(cabundle):
             store.add_cert(OpenSSL.crypto.load_certificate(
                 OpenSSL.crypto.FILETYPE_PEM, cert))
 
-        ctx = OpenSSL.crypto.X509StoreContext(store, client_cert)
+        ctx = OpenSSL.crypto.X509StoreContext(
+            store, client_cert)
         ctx.verify_certificate()
 
         if client_cert.has_expired():
