@@ -122,7 +122,7 @@ app = create_app()
 @app.errorhandler(CertificateError)
 def handle_bad_request(e):
     sentry_sdk.capture_exception(e)
-    return e.message, 500
+    return e.message, 400
 
 
 def authenticated(f):
