@@ -154,7 +154,9 @@ def authenticated(f):
                 user = auth.user_for_token(token)
                 if user is not None and not auth.check_scopes(
                         'access:services!service=downloadservice', user):
-                    return 'Access denied, token scopes are insufficient. If you need access to this service, please contact CTA-CH DC team at EPFL.', 403
+                    return 'Access denied, token scopes are insufficient. ' + \
+                        'If you need access to this service, please ' + \
+                        'contact CTA-CH DC team at EPFL.', 403
             else:
                 user = None
 
