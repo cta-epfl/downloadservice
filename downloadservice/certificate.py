@@ -28,8 +28,7 @@ def verify_certificate(cabundle, certificate):
             store.add_cert(OpenSSL.crypto.load_certificate(
                 OpenSSL.crypto.FILETYPE_PEM, cert))
 
-        ctx = OpenSSL.crypto.X509StoreContext(
-            store, client_cert)
+        ctx = OpenSSL.crypto.X509StoreContext(store, client_cert)
         ctx.verify_certificate()
 
         if client_cert.has_expired():
