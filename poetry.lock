@@ -359,17 +359,25 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "ctadata"
-version = "0.2.6"
+version = "0.3.0"
 description = ""
 optional = false
-python-versions = ">=3.8,<4.0"
-files = [
-    {file = "ctadata-0.2.6-py3-none-any.whl", hash = "sha256:e56c92afcfd7e7b5bfc99ff6df603935874e6a92370af0250e366dbf45231d6f"},
-    {file = "ctadata-0.2.6.tar.gz", hash = "sha256:94cba2ec4ec428ea779a8e0cebe3a181f6fb4da77b0cc262891a4b2dfd477a18"},
-]
+python-versions = "^3.8"
+files = []
+develop = false
 
 [package.dependencies]
-click = ">=8.1.3,<9.0.0"
+click = "^8.1.3"
+httpx = "^0.24.1"
+importlib-metadata = "^6.8.0"
+requests = "^2.31.0"
+webdav4 = "^0.9.8"
+
+[package.source]
+type = "git"
+url = "https://github.com/cta-epfl/ctadata.git"
+reference = "v0.3.0-beta1"
+resolved_reference = "0ace8066fce3b2bd7002904552c807f30c76b32a"
 
 [[package]]
 name = "defusedxml"
@@ -1398,13 +1406,13 @@ files = [
 
 [[package]]
 name = "sentry-sdk"
-version = "1.29.2"
+version = "1.30.0"
 description = "Python client for Sentry (https://sentry.io)"
 optional = false
 python-versions = "*"
 files = [
-    {file = "sentry-sdk-1.29.2.tar.gz", hash = "sha256:a99ee105384788c3f228726a88baf515fe7b5f1d2d0f215a03d194369f158df7"},
-    {file = "sentry_sdk-1.29.2-py2.py3-none-any.whl", hash = "sha256:3e17215d8006612e2df02b0e73115eb8376c37e3f586d8436fa41644e605074d"},
+    {file = "sentry-sdk-1.30.0.tar.gz", hash = "sha256:7dc873b87e1faf4d00614afd1058bfa1522942f33daef8a59f90de8ed75cd10c"},
+    {file = "sentry_sdk-1.30.0-py2.py3-none-any.whl", hash = "sha256:2e53ad63f96bb9da6570ba2e755c267e529edcf58580a2c0d2a11ef26e1e678b"},
 ]
 
 [package.dependencies]
@@ -1430,6 +1438,7 @@ httpx = ["httpx (>=0.16.0)"]
 huey = ["huey (>=2)"]
 loguru = ["loguru (>=0.5)"]
 opentelemetry = ["opentelemetry-distro (>=0.35b0)"]
+opentelemetry-experimental = ["opentelemetry-distro (>=0.40b0,<1.0)", "opentelemetry-instrumentation-aiohttp-client (>=0.40b0,<1.0)", "opentelemetry-instrumentation-django (>=0.40b0,<1.0)", "opentelemetry-instrumentation-fastapi (>=0.40b0,<1.0)", "opentelemetry-instrumentation-flask (>=0.40b0,<1.0)", "opentelemetry-instrumentation-requests (>=0.40b0,<1.0)", "opentelemetry-instrumentation-sqlite3 (>=0.40b0,<1.0)", "opentelemetry-instrumentation-urllib (>=0.40b0,<1.0)"]
 pure-eval = ["asttokens", "executing", "pure-eval"]
 pymongo = ["pymongo (>=3.1)"]
 pyspark = ["pyspark (>=2.4.4)"]
@@ -1709,4 +1718,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "f307538a829cc85cc3bea22031c67aa832831a3fd20b6672e21148189bbbb77a"
+content-hash = "298ef42308ba128a14ef1bbef8983c6996466d7a63e1ef8e996643b8634bd764"

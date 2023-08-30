@@ -22,8 +22,8 @@ import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 sentry_sdk.init(
-    dsn='https://452458c2a6630292629364221bff0dee@o4505709665976320\
-        .ingest.sentry.io/4505709666762752',
+    dsn='https://452458c2a6630292629364221bff0dee@o4505709665976320' +
+        '.ingest.sentry.io/4505709666762752',
     integrations=[
         FlaskIntegration(),
     ],
