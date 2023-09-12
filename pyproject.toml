@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "downloadservice"
-version = "0.4.2"
+version = "0.4.3"
 description = ""
 authors = ["Volodymyr Savchenko <contact@volodymyrsavchenko.com>"]
 
