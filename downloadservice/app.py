@@ -15,6 +15,7 @@ from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,
     session, stream_with_context, render_template
 )
+from flask_cors import CORS
 
 import logging
 
@@ -68,6 +69,7 @@ default_chunk_size = 10 * 1024 * 1024
 
 def create_app():
     app = Flask(__name__)
+    CORS(app)
 
     app.config['SECRET_KEY'] = os.environ.get(
         'FLASK_SECRET', secrets.token_bytes(32))
