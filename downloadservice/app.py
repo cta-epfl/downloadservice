@@ -7,7 +7,7 @@ import os
 import io
 import re
 import subprocess
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 import requests
 import secrets
 import xml.etree.ElementTree as ET
@@ -288,15 +288,19 @@ def get_upstream_session(user=None):
 
 
 def arcproxy():
-    return int(subprocess.check_output(["arcproxy", "-i", "vomsACvalidityLeft"]).decode().strip())
+    return int(subprocess.check_output(
+                ["arcproxy", "-i", "vomsACvalidityLeft"]
+              ).decode().strip())
 
 
 def arcinfo():
     arcinfo = subprocess.check_output(["arcinfo", "-l"]).strip()
     return dict(
         proxy_validity_left=arcproxy(),
-        free_slots=int(re.search(r"Free slots: ([0-9]*)", arcinfo.decode()).group(1)),
-        total_slots=int(re.search(r"Total slots: ([0-9]*)", arcinfo.decode()).group(1)),
+        free_slots=int(
+            re.search(r"Free slots: ([0-9]*)", arcinfo.decode()).group(1)),
+        total_slots=int(
+            re.search(r"Total slots: ([0-9]*)", arcinfo.decode()).group(1)),
     )
 
 
