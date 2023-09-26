@@ -6,7 +6,8 @@ from functools import wraps
 import os
 import io
 import re
-from urllib.parse import urlparse
+import subprocess
+from urllib.parse import urljoin, urlparse
 import requests
 import secrets
 import xml.etree.ElementTree as ET
@@ -286,7 +287,29 @@ def get_upstream_session(user=None):
     return session
 
 
-@app.route(url_prefix + '/health')
+def arcproxy():
+    return int(subprocess.check_output(["arcproxy", "-i", "vomsACvalidityLeft"]).decode().strip())
+
+
+def arcinfo():
+    arcinfo = subprocess.check_output(["arcinfo", "-l"]).strip()
+    return dict(
+        proxy_validity_left=arcproxy(),
+        free_slots=int(re.search(r"Free slots: ([0-9]*)", arcinfo.decode()).group(1)),
+        total_slots=int(re.search(r"Total slots: ([0-9]*)", arcinfo.decode()).group(1)),
+    )
+
+
+@app.route(url_prefix + "/health/arc")
+def health_arc():
+    try:
+        return jsonify(arcinfo())
+    except Exception as e:
+        print(e)
+        return f"Unhealthy! {e}", 500
+
+
+@app.route(url_prefix + "/health")
 def health():
     url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
