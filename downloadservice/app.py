@@ -309,7 +309,7 @@ def health_arc():
     try:
         return jsonify(arcinfo())
     except Exception as e:
-        print(e)
+        logger.exception("arcinfo result is not good")
         return f"Unhealthy! {e}", 500
 
 
