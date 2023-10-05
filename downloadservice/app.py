@@ -187,7 +187,8 @@ def login(user):
 @authenticated
 def upload_cert(user):
     filename = user_to_path_fragment(user) + ".crt"
-    certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
+    certificate_file = os.path.join(
+        app.config['CTADS_CERTIFICATE_DIR'], filename)
 
     certificate = request.json.get('certificate')
 
@@ -208,6 +209,7 @@ def upload_cert(user):
 
     with open(certificate_file, 'w') as f:
         f.write(certificate)
+    os.chmod(certificate_file, 600)
 
     return {'message': 'Certificate stored', 'validity': validity}, 200
 
@@ -263,7 +265,8 @@ def get_upstream_session(user=None):
     own_certificate = False
     if user is not None:
         filename = user_to_path_fragment(user) + ".crt"
-        own_certificate_file = app.config['CTADS_CERTIFICATE_DIR'] + filename
+        own_certificate_file = os.path.join(
+            app.config['CTADS_CERTIFICATE_DIR'], filename)
 
         if os.path.isfile(own_certificate_file):
             own_certificate = True
