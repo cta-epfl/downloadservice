@@ -244,12 +244,12 @@ def upload_main_cert(user):
         with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
             f.write(certificate)
             updated.add('Certificate')
-        os.chmod(app.config['CTADS_CLIENTCERT'], 600)
+        os.chmod(app.config['CTADS_CLIENTCERT'], 0o600)
     if cabundle is not None:
         with open(app.config['CTADS_CABUNDLE'], 'w') as f:
             f.write(cabundle)
             updated.add('CABundle')
-        os.chmod(app.config['CTADS_CABUNDLE'], 644)
+        os.chmod(app.config['CTADS_CABUNDLE'], 0o644)
 
     return {
         'message': ' and '.join(updated) + ' stored',
