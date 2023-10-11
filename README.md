@@ -1,5 +1,3 @@
-**NOTE: downloadservice repository is moved to CTAO gitlab. Github repository is left for tracking reasons only.**
-
 # Download service
 
 Backend server for [https://github.com/cta-epfl/ctadata](https://github.com/cta-epfl/ctadata).
