@@ -209,7 +209,7 @@ def upload_cert(user):
 
     with open(certificate_file, 'w') as f:
         f.write(certificate)
-    os.chmod(certificate_file, 600)
+    os.chmod(certificate_file, 0o600)
 
     return {'message': 'Certificate stored', 'validity': validity}, 200
 
