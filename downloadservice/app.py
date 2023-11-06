@@ -4,6 +4,7 @@ from downloadservice.certificate import (
 )
 from functools import wraps
 import os
+import stat
 import io
 import re
 from urllib.parse import urlparse
@@ -209,7 +210,7 @@ def upload_cert(user):
 
     with open(certificate_file, 'w') as f:
         f.write(certificate)
-    os.chmod(certificate_file, 0o600)
+    os.chmod(certificate_file, stat.S_IWUSR)
 
     return {'message': 'Certificate stored', 'validity': validity}, 200
 
@@ -244,12 +245,12 @@ def upload_main_cert(user):
         with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
             f.write(certificate)
             updated.add('Certificate')
-        os.chmod(app.config['CTADS_CLIENTCERT'], 0o600)
+        os.chmod(app.config['CTADS_CLIENTCERT'], stat.S_IWUSR)
     if cabundle is not None:
         with open(app.config['CTADS_CABUNDLE'], 'w') as f:
             f.write(cabundle)
             updated.add('CABundle')
-        os.chmod(app.config['CTADS_CABUNDLE'], 0o644)
+        os.chmod(app.config['CTADS_CABUNDLE'], stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
 
     return {
         'message': ' and '.join(updated) + ' stored',
