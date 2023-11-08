@@ -76,18 +76,8 @@ def create_app():
         'FLASK_SECRET', secrets.token_bytes(32))
     app.secret_key = app.config['SECRET_KEY']
 
-    app.config['OIDC_CLIENT_SECRETS'] = 'secrets.json'
-    app.config['OIDC_COOKIE_SECURE'] = False
-    app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
-    app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
-    app.config['CTADS_CERTIFICATE_DIR'] = \
-        os.environ.get('CTADS_CERTIFICATE_DIR', './certificate/')
-    app.config['CTADS_CABUNDLE'] = \
-        os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
-    app.config['CTADS_CLIENTCERT'] = \
-        os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
-    app.config['CTADS_DISABLE_ALL_AUTH'] = \
-        os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
+    app.config['CTACS_URL'] = os.getenv('CTACS_URL', '')
+
     app.config['CTADS_UPSTREAM_ENDPOINT'] = \
         os.getenv('CTADS_UPSTREAM_ENDPOINT',
                   'https://dcache.cta.cscs.ch:2880/')
@@ -97,24 +87,6 @@ def create_app():
         os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
-
-    # Check certificate folder
-    os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exist_ok=True)
-
-    # Check certificates and their validity on startup
-    cabundle_file = app.config['CTADS_CABUNDLE']
-    cert_file = app.config['CTADS_CLIENTCERT']
-    try:
-        cabundle = open(cabundle_file, 'r').read()
-        with open(cert_file, 'r') as f:
-            certificate = f.read()
-            verify_certificate(cabundle, certificate)
-            if certificate_validity(certificate) <= datetime.now():
-                logger.warning('Configured certificate expired')
-    except FileNotFoundError:
-        logger.warning('No configured certificate')
-    except CertificateError:
-        logger.warning('Invalid configured certificate')
 
     return app
 
@@ -193,81 +165,24 @@ def test(user):
     return render_template('test.html', user=user, token=user_token, service=auth.user_for_token(os.environ.get('JUPYTERHUB_API_TOKEN')))
 
 
-@app.route(url_prefix + '/upload-cert', methods=['POST'])
-@authenticated
-def upload_cert(user):
-    filename = user_to_path_fragment(user) + ".crt"
-    certificate_file = os.path.join(
-        app.config['CTADS_CERTIFICATE_DIR'], filename)
-
-    certificate = request.json.get('certificate')
-
-    try:
-        cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
-    except FileNotFoundError:
-        return 'DownloadService cabundle not configured, ' + \
-            'please contact the administrator', 500
-    verify_certificate(cabundle, certificate)
-
-    validity = certificate_validity(certificate)
-    if validity.date() > date.today()+timedelta(days=7):
-        return 'certificate validity too long, please generate a ' +\
-            'short-lived (max 7 day) proxy certificate for uploading. ' +\
-            'Please see https://ctaodc.ch/ for more details.', 400
-    if validity <= datetime.today():
-        return 'certificate expired', 400
-
-    with open(certificate_file, 'w') as f:
-        f.write(certificate)
-    os.chmod(certificate_file, stat.S_IWUSR)
-
-    return {'message': 'Certificate stored', 'validity': validity}, 200
-
-
-@app.route(url_prefix + '/upload-main-cert', methods=['POST'])
-@authenticated
-def upload_main_cert(user):
-    if not isinstance(user, dict) or user['admin'] is not True:
-        return 'access denied', 401
-
-    data = request.json
-    certificate = data.get('certificate', None)
-    cabundle = data.get('cabundle', None)
-
-    if certificate is None and cabundle is None:
-        return 'requests missing certificate or cabundle', 400
-
-    if cabundle is None:
-        cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
-    if certificate is None:
-        certificate = open(app.config['CTADS_CLIENTCERT'], 'r').read()
-    verify_certificate(cabundle, certificate)
-
-    if certificate and certificate_validity(certificate).date() > \
-            (date.today()+timedelta(days=7)):
-        return 'certificate validity too long, please generate a ' +\
-            'short-lived (max 7 day) proxy certificate for uploading. ' +\
-            'Please see https://ctaodc.ch/ for more details.', 400
-
-    updated = set()
-    if certificate is not None:
-        with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
-            f.write(certificate)
-            updated.add('Certificate')
-        os.chmod(app.config['CTADS_CLIENTCERT'], stat.S_IWUSR)
-    if cabundle is not None:
-        with open(app.config['CTADS_CABUNDLE'], 'w') as f:
-            f.write(cabundle)
-            updated.add('CABundle')
-        os.chmod(app.config['CTADS_CABUNDLE'], stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
-
-    return {
-        'message': ' and '.join(updated) + ' stored',
-        'cabundleUploaded': cabundle is not None,
-        'certificateUploaded': certificate is not None,
-    }, 200
-
 def get_upstream_session(user=None):
+    if user != None:
+        header = request.headers.get('Authorization')
+        if header and header.startswith('Bearer '):
+            header_token = header.removeprefix('Bearer ')
+        else:
+            header_token = None
+
+        user_token = session.get('token') \
+            or request.args.get('token') \
+            or header_token
+
+        # TODO: Download certificate from the new certificate service
+        requests.get(os.environ['CTCS_URL']+'/certificate', params={
+            'user-token': user,
+            'service-token':os.environ['JUPYTERHUB_API_TOKEN'],
+        })
+
     session = requests.Session()
 
     cert = app.config['CTADS_CLIENTCERT']
@@ -306,6 +221,9 @@ def health():
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
         app.config['CTADS_UPSTREAM_BASEFOLDER']
 
+    return 'OK', 200
+
+    # TODO: Find another way to check without any token
     upstream_session = get_upstream_session()
     try:
         r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
