@@ -184,6 +184,15 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
+
+@app.route(url_prefix + '/test')
+@authenticated
+def test(user):
+    user_token = session.get('token') or request.args.get('token')
+
+    return render_template('test.html', user=user, token=user_token, service=auth.user_for_token(os.environ.get('JUPYTERHUB_API_TOKEN')))
+
+
 @app.route(url_prefix + '/upload-cert', methods=['POST'])
 @authenticated
 def upload_cert(user):
@@ -257,7 +266,6 @@ def upload_main_cert(user):
         'cabundleUploaded': cabundle is not None,
         'certificateUploaded': certificate is not None,
     }, 200
-
 
 def get_upstream_session(user=None):
     session = requests.Session()

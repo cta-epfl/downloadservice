@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>JupyterHub - DownloadService</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="icon" href="./favicon.ico" type="image/x-icon">
+  </head>
+  <body>
+    <main>
+        <h1>JupyterHub DownloadService</h1>  
+        {% if user %}
+            <p>Welcome {{user}}, your access token is {{token}}</p>
+        {% else %}
+            <p>Welcome, please contact us to get acces to the <em>download service</em></p>
+        {% endif %}
+        {% if service %}
+            <p>Service : {{service}}</p>
+        {% else %}
+            <p>No service defined</p>
+        {% endif %}
+    </main>
+	<script src="index.js"></script>
+  </body>
+</html>
