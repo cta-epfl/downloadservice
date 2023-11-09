@@ -82,6 +82,8 @@ def create_app():
         os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
+    app.config['CTADS_DISABLE_ALL_AUTH'] = \
+        os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
 
     return app
 
