@@ -1,10 +1,5 @@
-from datetime import date, datetime, timedelta
-from downloadservice.certificate import (
-    CertificateError, certificate_validity, verify_certificate
-)
 from functools import wraps
 import os
-import stat
 import io
 import re
 from urllib.parse import urlparse
@@ -92,12 +87,6 @@ def create_app():
 
 
 app = create_app()
-
-
-@app.errorhandler(CertificateError)
-def handle_bad_request(e):
-    sentry_sdk.capture_exception(e)
-    return e.message, 400
 
 
 def authenticated(f):
@@ -406,8 +395,7 @@ def oauth_callback():
     # store token in session cookie
     session['token'] = token
     next_url = auth.get_next_url(cookie_state) or url_prefix
-    r = make_response(redirect(next_url))
-    return r
+    return make_response(redirect(next_url))
 
 
 webdav_methods = ['GET', 'HEAD',  'MKCOL', 'OPTIONS',
