@@ -166,62 +166,43 @@ def test(user):
 
 
 def get_upstream_session(user=None):
-    if user != None:
-        header = request.headers.get('Authorization')
-        if header and header.startswith('Bearer '):
-            header_token = header.removeprefix('Bearer ')
-        else:
-            header_token = None
+    if user == None:
+        raise "Missing user"
+    
+    header = request.headers.get('Authorization')
+    if header and header.startswith('Bearer '):
+        header_token = header.removeprefix('Bearer ')
+    else:
+        header_token = None
 
-        user_token = session.get('token') \
-            or request.args.get('token') \
-            or header_token
+    user_token = session.get('token') \
+        or request.args.get('token') \
+        or header_token
+    
+    service_token = os.environ['JUPYTERHUB_API_TOKEN']
 
-        # TODO: Download certificate from the new certificate service
-        requests.get(os.environ['CTCS_URL']+'/certificate', params={
-            'user-token': user,
-            'service-token':os.environ['JUPYTERHUB_API_TOKEN'],
-        })
+    r = requests.get(os.environ['CTCS_URL']+'/certificate', params={
+        'service-token': service_token,
+        'user-token': user_token,
+    })
+
+    if r.status_code != 200:
+        raise "Error while retrieving certificate"
 
     session = requests.Session()
-
-    cert = app.config['CTADS_CLIENTCERT']
-    own_certificate = False
-    if user is not None:
-        filename = user_to_path_fragment(user) + ".crt"
-        own_certificate_file = os.path.join(
-            app.config['CTADS_CERTIFICATE_DIR'], filename)
-
-        if os.path.isfile(own_certificate_file):
-            own_certificate = True
-            cert = own_certificate_file
-
-    try:
-        with open(cert, 'r') as f:
-            certificate = f.read()
-            if certificate_validity(certificate) <= datetime.now():
-                if own_certificate:
-                    raise 'Your configured certificate is invalid, ' + \
-                        'please refresh it.'
-                else:
-                    logger.exception('outdated main certificate')
-                    raise 'Service certificate invalid please contact us.'
-
-            session.verify = app.config['CTADS_CABUNDLE']
-            session.cert = cert
-    except FileNotFoundError:
-        raise CertificateError('no valid certificate configured')
+    session.verify = r.json.get('cabundle')
+    session.cert = r.json.get('certificate')
 
     return session
 
 
 @app.route(url_prefix + '/health')
 def health():
+    return 'OK', 200
+
     url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
         app.config['CTADS_UPSTREAM_BASEFOLDER']
-
-    return 'OK', 200
 
     # TODO: Find another way to check without any token
     upstream_session = get_upstream_session()
@@ -425,8 +406,8 @@ def oauth_callback():
     # store token in session cookie
     session['token'] = token
     next_url = auth.get_next_url(cookie_state) or url_prefix
-    response = make_response(redirect(next_url))
-    return response
+    r = make_response(redirect(next_url))
+    return r
 
 
 webdav_methods = ['GET', 'HEAD',  'MKCOL', 'OPTIONS',
