@@ -162,29 +162,29 @@ def get_upstream_session(user=None):
     if user is None:
         raise "Missing user"
 
-    header = request.headers.get('Authorization')
-    if header and header.startswith('Bearer '):
-        header_token = header.removeprefix('Bearer ')
-    else:
-        header_token = None
+    if app.config['CTADS_DISABLE_ALL_AUTH']:
+        header = request.headers.get('Authorization')
+        if header and header.startswith('Bearer '):
+            header_token = header.removeprefix('Bearer ')
+        else:
+            header_token = None
 
-    user_token = session.get('token') \
-        or request.args.get('token') \
-        or header_token
+        user_token = session.get('token') \
+            or request.args.get('token') \
+            or header_token
 
-    service_token = os.environ['JUPYTERHUB_API_TOKEN']
+        service_token = os.environ['JUPYTERHUB_API_TOKEN']
 
-    r = requests.get(os.environ['CTCS_URL']+'/certificate', params={
-        'service-token': service_token,
-        'user-token': user_token,
-    })
+        r = requests.get(os.environ['CTCS_URL']+'/certificate', params={
+            'service-token': service_token,
+            'user-token': user_token,
+        })
 
-    if r.status_code != 200:
-        raise "Error while retrieving certificate"
+        if r.status_code != 200:
+            raise "Error while retrieving certificate"
 
-    session = requests.Session()
-    session.verify = r.json.get('cabundle')
-    session.cert = r.json.get('certificate')
+        session.verify = r.json.get('cabundle')
+        session.cert = r.json.get('certificate')
 
     return session
 
