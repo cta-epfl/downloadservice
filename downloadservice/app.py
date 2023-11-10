@@ -162,7 +162,7 @@ def get_upstream_session(user=None):
     if user is None:
         raise "Missing user"
 
-    if app.config['CTADS_DISABLE_ALL_AUTH']:
+    if not app.config['CTADS_DISABLE_ALL_AUTH']:
         header = request.headers.get('Authorization')
         if header and header.startswith('Bearer '):
             header_token = header.removeprefix('Bearer ')
