@@ -158,7 +158,8 @@ def test(user):
 
 
 def get_upstream_session(user=None):
-    if user == None:
+    session = requests.Session()
+    if user is None:
         raise "Missing user"
 
     header = request.headers.get('Authorization')
