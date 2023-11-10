@@ -147,19 +147,20 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
-
 @app.route(url_prefix + '/test')
 @authenticated
 def test(user):
     user_token = session.get('token') or request.args.get('token')
 
-    return render_template('test.html', user=user, token=user_token, service=auth.user_for_token(os.environ.get('JUPYTERHUB_API_TOKEN')))
+    return render_template(
+        'test.html', user=user, token=user_token, service=auth.user_for_token(
+            os.environ.get('JUPYTERHUB_API_TOKEN')))
 
 
 def get_upstream_session(user=None):
     if user == None:
         raise "Missing user"
-    
+
     header = request.headers.get('Authorization')
     if header and header.startswith('Bearer '):
         header_token = header.removeprefix('Bearer ')
@@ -169,7 +170,7 @@ def get_upstream_session(user=None):
     user_token = session.get('token') \
         or request.args.get('token') \
         or header_token
-    
+
     service_token = os.environ['JUPYTERHUB_API_TOKEN']
 
     r = requests.get(os.environ['CTCS_URL']+'/certificate', params={
