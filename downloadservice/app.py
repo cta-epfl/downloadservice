@@ -308,7 +308,7 @@ def fetch(user, path):
             for r in f.iter_content(chunk_size=chunk_size):
                 yield r
 
-    return Response(stream_with_context(generate()), as_attachment=True)
+    return Response(stream_with_context(generate()))
     # TODO print useful logs for loki
 
 
