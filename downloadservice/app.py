@@ -8,9 +8,8 @@ import secrets
 import xml.etree.ElementTree as ET
 import importlib.metadata
 from flask import (
-    Blueprint, Flask, Response, jsonify, make_response, redirect, request,
-    session, stream_with_context, render_template
-)
+    Blueprint, Flask, Response, jsonify, make_response, redirect,
+    request, session, stream_with_context, render_template)
 from flask_cors import CORS
 
 import logging
@@ -303,12 +302,16 @@ def fetch(user, path):
     def generate():
         with upstream_session.get(url, stream=True) as f:
             logger.debug('got response headers: %s', f.headers)
-            # headers['Content-Type'] = f.headers['content-type']
             logger.info('opened %s', f)
             for r in f.iter_content(chunk_size=chunk_size):
                 yield r
 
-    return Response(stream_with_context(generate()))
+    filename = os.path.basename(path)
+    return Response(
+        stream_with_context(generate()),
+        headers={
+            'Content-Disposition': f'attachment; filename={filename}'
+        })
     # TODO print useful logs for loki
 
 
@@ -323,7 +326,6 @@ def user_to_path_fragment(user):
 @app.route(url_prefix + '/upload/<path:path>', methods=['POST'])
 @authenticated
 def upload(user, path):
-
     # TODO: Not secure for production
     if '..' in path:
         return "Error: path cannot contain '..'", 400

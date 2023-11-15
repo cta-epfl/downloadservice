@@ -21,7 +21,7 @@ jupyterhub = "^4.0.1"
 optional = true
 
 [tool.poetry.group.test.dependencies]
-ctadata = { git = "https://github.com/cta-epfl/ctadata.git", tag = "v0.3.0-beta1" }
+ctadata = { git = "https://github.com/cta-epfl/ctadata.git", tag = "v0.4.0-beta1" }
 pytest = "^7.3.2"
 psutil = "^5.9.5"
 pytest-flask = "^1.2.0"
@@ -29,7 +29,7 @@ pytest-timeout = "^2.1.0"
 cheroot = "^10.0.0"
 xmltodict = "^0.13.0"
 webdav4 = "^0.9.8"
-wsgidav = { git="https://github.com/Ph0tonic/wsgidav.git", branch="fix_chunk_stream" }
+wsgidav = "^4.3.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
