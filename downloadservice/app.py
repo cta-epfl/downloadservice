@@ -14,7 +14,8 @@ import xml.etree.ElementTree as ET
 import importlib.metadata
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect, request,
-    session, stream_with_context, render_template)
+    session, stream_with_context, render_template
+)
 from flask_cors import CORS
 
 import logging
