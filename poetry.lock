@@ -362,7 +362,7 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "ctadata"
-version = "v0.4.0-beta1"
+version = "0.3.3"
 description = ""
 optional = false
 python-versions = "^3.8"
@@ -379,8 +379,8 @@ webdav4 = "^0.9.8"
 [package.source]
 type = "git"
 url = "https://github.com/cta-epfl/ctadata.git"
-reference = "v0.4.0-beta1"
-resolved_reference = "b84a16e1689f582cfb1b79713e686f0d873ade7f"
+reference = "v0.3.3"
+resolved_reference = "5756fa5467a0b1f8dc7d91cbeb9e8e71362b077a"
 
 [[package]]
 name = "defusedxml"
@@ -1775,4 +1775,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "18d012059297e99c2c2ea82f270ec2d67863e245cac7c8e9c92349acd95324fe"
+content-hash = "25934eba01ba443ab4f0b1839e5bd98695d59f1137816ec5dfaf541ed7947f8b"
