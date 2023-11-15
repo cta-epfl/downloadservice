@@ -210,7 +210,7 @@ def upload_cert(user):
 
     with open(certificate_file, 'w') as f:
         f.write(certificate)
-    os.chmod(certificate_file, stat.S_IWUSR)
+    os.chmod(certificate_file, stat.S_IWUSR | stat.S_IRUSR)
 
     return {'message': 'Certificate stored', 'validity': validity}, 200
 
@@ -245,14 +245,14 @@ def upload_main_cert(user):
         with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
             f.write(certificate)
             updated.add('Certificate')
-        os.chmod(app.config['CTADS_CLIENTCERT'], stat.S_IWUSR)
+        os.chmod(app.config['CTADS_CLIENTCERT'], stat.S_IWUSR | stat.S_IRUSR)
     if cabundle is not None:
         with open(app.config['CTADS_CABUNDLE'], 'w') as f:
             f.write(cabundle)
             updated.add('CABundle')
         os.chmod(
             app.config['CTADS_CABUNDLE'],
-            stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+            stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
 
     return {
         'message': ' and '.join(updated) + ' stored',
