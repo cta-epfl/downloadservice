@@ -52,7 +52,8 @@ def test_apiclient_upload_certificate(testing_download_service):
             cert_file = f"{tmpdir}/cert-file"
             certificate = sign_certificate(testing_download_service['ca'], 1)
             open(cert_file, 'w').write(certificate)
-            res = ctadata.upload_certificate(cert_file)
+            res = ctadata.upload_personal_certificate(
+                certificate_file_path=cert_file)
             assert type(res) is dict and \
                 res['message'] is not None and res['validity'] is not None
 
@@ -67,9 +68,9 @@ def test_apiclient_upload_admin_cert(testing_download_service):
                 cert_file = f"{tmpdir}/cert-file"
                 certificate = sign_certificate(alt_ca, 1)
                 open(cert_file, 'w').write(certificate)
-                res = ctadata.upload_admin_certificate(
-                    certificate_file=cert_file,
-                    cabundle_file=alt_ca['crt_file'],
+                res = ctadata.upload_shared_certificate(
+                    certificate_file_path=cert_file,
+                    cabundle_file_path=alt_ca['crt_file'],
                 )
             assert type(res) is dict and res['message'] is not None and \
                 res['cabundleUploaded'] is True and \
