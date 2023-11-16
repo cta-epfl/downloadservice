@@ -175,10 +175,10 @@ def get_upstream_session(user=None):
 
         service_token = os.environ['JUPYTERHUB_API_TOKEN']
 
-        r = requests.get(os.environ['CTCS_URL']+'/certificate', params={
-            'service-token': service_token,
-            'user-token': user_token,
-        })
+        r = requests.get(
+            urljoin_multipart(os.environ['CTACS_URL'], '/certificate'),
+            params={'service-token': service_token,
+                    'user-token': user_token})
 
         if r.status_code != 200:
             raise "Error while retrieving certificate"
