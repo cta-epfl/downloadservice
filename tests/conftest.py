@@ -102,7 +102,7 @@ def app():
                 "DEBUG": True,
                 "CTADS_CABUNDLE": ca['crt_file'],
                 "CTADS_CLIENTCERT": client_cert_file,
-                "CTADS_CLIENTCERT_DIR": tmpdir,
+                "CTADS_CERTIFICATE_DIR": tmpdir,
                 'CTADS_UPSTREAM_ENDPOINT':
                     f'http://{webdav_server_host}:{str(webdav_server_port)}/',
                 'CTADS_UPSTREAM_BASEPATH': '',
@@ -185,7 +185,7 @@ def testing_download_service(pytestconfig):
             env['CTADS_DISABLE_ALL_AUTH'] = 'True'
             env["CTADS_CABUNDLE"] = ca['crt_file']
             env["CTADS_CLIENTCERT"] = client_cert_file
-            env["CTADS_CLIENTCERT_DIR"] = tmpdir
+            env["CTADS_CERTIFICATE_DIR"] = tmpdir
             env['CTADS_UPSTREAM_ENDPOINT'] = \
                 f'http://{webdav_server_host}:{str(webdav_server_port)}/'
             env['CTADS_UPSTREAM_BASEPATH'] = ''
