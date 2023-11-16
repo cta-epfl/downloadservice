@@ -157,9 +157,10 @@ def test(user):
 
 
 def get_upstream_session(user=None):
-    session = requests.Session()
     if user is None:
         raise "Missing user"
+
+    upstream_session = requests.Session()
 
     if not app.config['CTADS_DISABLE_ALL_AUTH']:
         header = request.headers.get('Authorization')
@@ -182,10 +183,10 @@ def get_upstream_session(user=None):
         if r.status_code != 200:
             raise "Error while retrieving certificate"
 
-        session.verify = r.json.get('cabundle')
-        session.cert = r.json.get('certificate')
+        upstream_session.verify = r.json.get('cabundle')
+        upstream_session.cert = r.json.get('certificate')
 
-    return session
+    return upstream_session
 
 
 @app.route(url_prefix + '/health')
