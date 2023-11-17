@@ -184,8 +184,8 @@ def get_upstream_session(user=None):
             logger.error('Error while retrieving certificate : %s', r.content)
             raise Exception("Error while retrieving certificate")
 
-        upstream_session.verify = r.json.get('cabundle')
-        upstream_session.cert = r.json.get('certificate')
+        upstream_session.verify = r.json().get('cabundle')
+        upstream_session.cert = r.json().get('certificate')
 
     return upstream_session
 
