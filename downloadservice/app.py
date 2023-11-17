@@ -158,7 +158,7 @@ def test(user):
 
 def get_upstream_session(user=None):
     if user is None:
-        raise "Missing user"
+        raise Exception("Missing user")
 
     upstream_session = requests.Session()
 
@@ -181,7 +181,8 @@ def get_upstream_session(user=None):
                     'user-token': user_token})
 
         if r.status_code != 200:
-            raise "Error while retrieving certificate"
+            logger.error('Error while retrieving certificate : %s', r.content)
+            raise Exception("Error while retrieving certificate")
 
         upstream_session.verify = r.json.get('cabundle')
         upstream_session.cert = r.json.get('certificate')
