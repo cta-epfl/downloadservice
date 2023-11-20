@@ -1,15 +1,19 @@
+from contextlib import contextmanager
 from functools import wraps
-import os
 import io
+import os
 import re
-from urllib.parse import urlparse
 import requests
 import secrets
+import stat
+import tempfile
+from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 import importlib.metadata
 from flask import (
     Blueprint, Flask, Response, jsonify, make_response, redirect,
-    request, session, stream_with_context, render_template)
+    request, session, stream_with_context, render_template
+)
 from flask_cors import CORS
 
 import logging
@@ -156,38 +160,51 @@ def test(user):
             os.environ.get('JUPYTERHUB_API_TOKEN')))
 
 
+# TODO: transform into a generator
+@contextmanager
 def get_upstream_session(user=None):
-    if user is None:
-        raise Exception("Missing user")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        if user is None:
+            raise Exception("Missing user")
 
-    upstream_session = requests.Session()
+        upstream_session = requests.Session()
 
-    if not app.config['CTADS_DISABLE_ALL_AUTH']:
-        header = request.headers.get('Authorization')
-        if header and header.startswith('Bearer '):
-            header_token = header.removeprefix('Bearer ')
-        else:
-            header_token = None
+        if not app.config['CTADS_DISABLE_ALL_AUTH']:
+            header = request.headers.get('Authorization')
+            if header and header.startswith('Bearer '):
+                header_token = header.removeprefix('Bearer ')
+            else:
+                header_token = None
 
-        user_token = session.get('token') \
-            or request.args.get('token') \
-            or header_token
+            user_token = session.get('token') \
+                or request.args.get('token') \
+                or header_token
 
-        service_token = os.environ['JUPYTERHUB_API_TOKEN']
+            service_token = os.environ['JUPYTERHUB_API_TOKEN']
 
-        r = requests.get(
-            urljoin_multipart(os.environ['CTACS_URL'], '/certificate'),
-            params={'service-token': service_token,
-                    'user-token': user_token})
+            r = requests.get(
+                urljoin_multipart(os.environ['CTACS_URL'], '/certificate'),
+                params={'service-token': service_token,
+                        'user-token': user_token})
 
-        if r.status_code != 200:
-            logger.error('Error while retrieving certificate : %s', r.content)
-            raise Exception("Error while retrieving certificate")
+            if r.status_code != 200:
+                logger.error(
+                    'Error while retrieving certificate : %s', r.content)
+                raise Exception("Error while retrieving certificate")
 
-        upstream_session.verify = r.json().get('cabundle')
-        upstream_session.cert = r.json().get('certificate')
+            cert_file = os.path.join(tmpdir, 'certificate')
+            cabundle_file = os.path.join(tmpdir, 'cabundle')
+            with open(cert_file, 'w') as f:
+                f.write(r.json().get('certificate'))
+            os.chmod(cert_file, stat.S_IRUSR)
+            with open(cabundle_file, 'w') as f:
+                f.write(r.json().get('cabundle'))
+            os.chmod(cabundle_file, stat.S_IRUSR)
 
-    return upstream_session
+            upstream_session.cert = cert_file
+            upstream_session.verify = cabundle_file
+
+        yield upstream_session
 
 
 @app.route(url_prefix + '/health')
@@ -199,19 +216,19 @@ def health():
         app.config['CTADS_UPSTREAM_BASEFOLDER']
 
     # TODO: Find another way to check without any token
-    upstream_session = get_upstream_session()
-    try:
-        r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
-                                     timeout=10)
-        if r.status_code in [200, 207]:
-            return 'OK', 200
-        else:
-            logger.error('service is unhealthy: %s', r.content.decode())
+    with get_upstream_session() as upstream_session:
+        try:
+            r = upstream_session.request('PROPFIND', url, headers={
+                                         'Depth': '1'}, timeout=10)
+            if r.status_code in [200, 207]:
+                return 'OK', 200
+            else:
+                logger.error('service is unhealthy: %s', r.content.decode())
+                return 'Unhealthy!', 500
+        except requests.exceptions.ReadTimeout as e:
+            logger.error('service is unhealthy: %s', e)
+            sentry_sdk.capture_exception(e)
             return 'Unhealthy!', 500
-    except requests.exceptions.ReadTimeout as e:
-        logger.error('service is unhealthy: %s', e)
-        sentry_sdk.capture_exception(e)
-        return 'Unhealthy!', 500
 
 
 @app.route(url_prefix + '/list', methods=['GET', 'POST'],
@@ -227,60 +244,60 @@ def list(user, path):
         (path or '')
     )
 
-    upstream_session = get_upstream_session(user)
+    with get_upstream_session(user) as upstream_session:
+        r = upstream_session.request(
+            'PROPFIND', upstream_url, headers={'Depth': '1'})
 
-    r = upstream_session.request(
-        'PROPFIND', upstream_url, headers={'Depth': '1'})
+        if r.status_code not in [200, 207]:
+            return f'Error: {r.status_code} {r.content.decode()}', r.status_code
 
-    if r.status_code not in [200, 207]:
-        return f'Error: {r.status_code} {r.content.decode()}', r.status_code
+        logger.debug('response: %s', r.content.decode())
 
-    logger.debug('response: %s', r.content.decode())
+        try:
+            tree = ET.parse(io.BytesIO(r.content))
+            root = tree.getroot()
+        except ET.ParseError as e:
+            logger.error('Error parsing XML %s in %s', e, r.content)
+            raise
 
-    try:
-        tree = ET.parse(io.BytesIO(r.content))
-        root = tree.getroot()
-    except ET.ParseError as e:
-        logger.error('Error parsing XML %s in %s', e, r.content)
-        raise
+        logger.info('xml: %s', root)
 
-    logger.info('xml: %s', root)
+        entries = []
 
-    entries = []
-
-    keymap = dict([
-        ('{DAV:}href', 'href'),
-        ('{DAV:}getcontentlength', 'size'),
-        ('{DAV:}getlastmodified', 'mtime')
-    ])
-
-    for i in root.iter('{DAV:}response'):
-        logger.debug('i: %s', i)
-
-        entry = {}
-        entries.append(entry)
-
-        for j in i.iter():
-            logger.debug('> j: %s %s', j.tag, j.text)
-            if j.tag in keymap:
-                entry[keymap[j.tag]] = j.text
-
-        up = urlparse(request.url)
-        entry['href'] = re.sub(
-            '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
-
-        entry['url'] = '/'.join([
-            up.scheme + ':/', up.netloc,
-            re.sub(path, '', up.path), entry['href']
+        keymap = dict([
+            ('{DAV:}href', 'href'),
+            ('{DAV:}getcontentlength', 'size'),
+            ('{DAV:}getlastmodified', 'mtime')
         ])
 
-        if entry['href'].endswith('/'):
-            entry['type'] = 'directory'
-        else:
-            entry['type'] = 'file'
+        for i in root.iter('{DAV:}response'):
+            logger.debug('i: %s', i)
 
-    return jsonify(entries)
-    # TODO print useful logs for loki
+            entry = {}
+            entries.append(entry)
+
+            for j in i.iter():
+                logger.debug('> j: %s %s', j.tag, j.text)
+                if j.tag in keymap:
+                    entry[keymap[j.tag]] = j.text
+
+            up = urlparse(request.url)
+            entry['href'] = re.sub(
+                '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'],
+                '', entry['href'])
+
+            entry['url'] = '/'.join([
+                up.scheme + ':/', up.netloc,
+                re.sub(path, '', up.path), entry['href']
+            ])
+
+            if entry['href'].endswith('/'):
+                entry['type'] = 'directory'
+            else:
+                entry['type'] = 'file'
+
+        return jsonify(entries)
+        # TODO print useful logs for loki
 
 
 @app.route(url_prefix + '/fetch', methods=['GET', 'POST'],
@@ -299,22 +316,21 @@ def fetch(user, path):
 
     logger.info('fetching upstream url %s', url)
 
-    upstream_session = get_upstream_session(user)
+    with get_upstream_session(user) as upstream_session:
+        def generate():
+            with upstream_session.get(url, stream=True) as f:
+                logger.debug('got response headers: %s', f.headers)
+                logger.info('opened %s', f)
+                for r in f.iter_content(chunk_size=chunk_size):
+                    yield r
 
-    def generate():
-        with upstream_session.get(url, stream=True) as f:
-            logger.debug('got response headers: %s', f.headers)
-            logger.info('opened %s', f)
-            for r in f.iter_content(chunk_size=chunk_size):
-                yield r
-
-    filename = os.path.basename(path)
-    return Response(
-        stream_with_context(generate()),
-        headers={
-            'Content-Disposition': f'attachment; filename={filename}'
-        })
-    # TODO print useful logs for loki
+        filename = os.path.basename(path)
+        return Response(
+            stream_with_context(generate()),
+            headers={
+                'Content-Disposition': f'attachment; filename={filename}'
+            })
+        # TODO print useful logs for loki
 
 
 def user_to_path_fragment(user):
@@ -353,37 +369,36 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    upstream_session = get_upstream_session(user)
+    with get_upstream_session(user) as upstream_session:
+        r = upstream_session.request('MKCOL', baseurl)
 
-    r = upstream_session.request('MKCOL', baseurl)
+        stats = dict(total_written=0)
 
-    stats = dict(total_written=0)
+        def generate(stats):
+            while r := request.stream.read(chunk_size):
+                logger.info('read %s Mb total %s Mb',
+                            len(r)/1024**2, stats['total_written']/1024**2)
+                stats['total_written'] += len(r)
+                yield r
 
-    def generate(stats):
-        while r := request.stream.read(chunk_size):
-            logger.info('read %s Mb total %s Mb',
-                        len(r)/1024**2, stats['total_written']/1024**2)
-            stats['total_written'] += len(r)
-            yield r
+        r = upstream_session.put(url, data=generate(stats))
 
-    r = upstream_session.put(url, data=generate(stats))
+        logger.info('%s %s %s', url, r, r.text)
 
-    logger.info('%s %s %s', url, r, r.text)
+        if r.status_code not in [200, 201]:
+            return f'Error: {r.status_code} {r.content.decode()}', r.status_code
+        else:
+            return {
+                'status': 'uploaded',
+                'path': upload_path,
+                'total_written': stats['total_written']
+            }
 
-    if r.status_code not in [200, 201]:
-        return f'Error: {r.status_code} {r.content.decode()}', r.status_code
-    else:
-        return {
-            'status': 'uploaded',
-            'path': upload_path,
-            'total_written': stats['total_written']
-        }
+        # TODO: first simple and safe mechanism would be to let users upload only
+        # to their own specialized directory with hashed name
 
-    # TODO: first simple and safe mechanism would be to let users upload only
-    # to their own specialized directory with hashed name
-
-    # return Response(stream_with_context(generate())), headers
-    # TODO print useful logs for loki
+        # return Response(stream_with_context(generate())), headers
+        # TODO print useful logs for loki
 
 
 @app.route(url_prefix + '/oauth_callback')
@@ -445,41 +460,40 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    upstream_session = get_upstream_session(user)
+    with get_upstream_session(user) as upstream_session:
+        res = upstream_session.request(
+            method=request.method,
+            url=urljoin_multipart(API_HOST, path),
+            # exclude 'host' and 'authorization' header
+            headers={k: v for k, v in request.headers
+                     if k.lower() not in ['host', 'authorization'] and
+                     k.lower() not in excluded_headers},
+            data=request_datastream(),
+            cookies=request.cookies,
+            allow_redirects=False,
+        )
 
-    res = upstream_session.request(
-        method=request.method,
-        url=urljoin_multipart(API_HOST, path),
-        # exclude 'host' and 'authorization' header
-        headers={k: v for k, v in request.headers
-                 if k.lower() not in ['host', 'authorization'] and
-                 k.lower() not in excluded_headers},
-        data=request_datastream(),
-        cookies=request.cookies,
-        allow_redirects=False,
-    )
+        headers = [
+            (k, v) for k, v in res.raw.headers.items()
+            if k.lower() not in excluded_headers
+        ]
 
-    headers = [
-        (k, v) for k, v in res.raw.headers.items()
-        if k.lower() not in excluded_headers
-    ]
+        endpoint_prefix = url_prefix+'/webdav'
 
-    endpoint_prefix = url_prefix+'/webdav'
+        def is_prop_method():
+            return request.method in ['PROPFIND', 'PROPPATCH']
 
-    def is_prop_method():
-        return request.method in ['PROPFIND', 'PROPPATCH']
+        def prop_content():
+            return res.content\
+                .replace(
+                    (':href>/' +
+                     app.config['CTADS_UPSTREAM_BASEFOLDER'] + '/').encode(),
+                    (':href>'+endpoint_prefix+'/' +
+                     app.config['CTADS_UPSTREAM_BASEFOLDER']+'/').encode()
+                )
 
-    def prop_content():
-        return res.content\
-            .replace(
-                (':href>/' +
-                 app.config['CTADS_UPSTREAM_BASEFOLDER'] + '/').encode(),
-                (':href>'+endpoint_prefix+'/' +
-                 app.config['CTADS_UPSTREAM_BASEFOLDER']+'/').encode()
-            )
-
-    return Response(
-        prop_content() if is_prop_method else res.content,
-        res.status_code,
-        headers
-    )
+        return Response(
+            prop_content() if is_prop_method else res.content,
+            res.status_code,
+            headers
+        )
