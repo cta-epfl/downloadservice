@@ -334,7 +334,7 @@ def fetch(user, path):
         upstream_session = get_upstream_session(user)
         upstream_session.__enter__()
     except:
-        upstream_session.__exit__()
+        upstream_session.__exit__(None, None, None)
         raise
 
     def generate():
@@ -345,7 +345,7 @@ def fetch(user, path):
                 for r in f.iter_content(chunk_size=chunk_size):
                     yield r
         finally:
-            upstream_session.__exit__()
+            upstream_session.__exit__(None, None, None)
 
     return Response(
         stream_with_context(generate()),
