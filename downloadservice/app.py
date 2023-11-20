@@ -21,6 +21,11 @@ import logging
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
+
+class CertificateError(Exception):
+    pass
+
+
 sentry_sdk.init(
     dsn='https://452458c2a6630292629364221bff0dee@o4505709665976320' +
         '.ingest.sentry.io/4505709666762752',
@@ -92,6 +97,12 @@ def create_app():
 
 
 app = create_app()
+
+
+@app.errorhandler(CertificateError)
+def handle_certificate_error(e):
+    sentry_sdk.capture_exception(e)
+    return e.message, 400
 
 
 def authenticated(f):
@@ -190,7 +201,8 @@ def get_upstream_session(user=None):
             if r.status_code != 200:
                 logger.error(
                     'Error while retrieving certificate : %s', r.content)
-                raise Exception("Error while retrieving certificate")
+                raise CertificateError(
+                    "Error while retrieving certificate: %s", r.text)
 
             cert_file = os.path.join(tmpdir, 'certificate')
             cabundle_file = os.path.join(tmpdir, 'cabundle')
