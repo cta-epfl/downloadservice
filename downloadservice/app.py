@@ -23,7 +23,9 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 
 
 class CertificateError(Exception):
-    pass
+    def __init__(self, message="invalid certificate"):
+        self.message = message
+        super().__init__(self.message)
 
 
 sentry_sdk.init(
