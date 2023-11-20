@@ -316,21 +316,21 @@ def fetch(user, path):
 
     logger.info('fetching upstream url %s', url)
 
-    with get_upstream_session(user) as upstream_session:
-        def generate():
+    def generate():
+        with get_upstream_session(user) as upstream_session:
             with upstream_session.get(url, stream=True) as f:
                 logger.debug('got response headers: %s', f.headers)
                 logger.info('opened %s', f)
                 for r in f.iter_content(chunk_size=chunk_size):
                     yield r
 
-        filename = os.path.basename(path)
-        return Response(
-            stream_with_context(generate()),
-            headers={
-                'Content-Disposition': f'attachment; filename={filename}'
-            })
-        # TODO print useful logs for loki
+    filename = os.path.basename(path)
+    return Response(
+        stream_with_context(generate()),
+        headers={
+            'Content-Disposition': f'attachment; filename={filename}'
+        })
+    # TODO print useful logs for loki
 
 
 def user_to_path_fragment(user):
