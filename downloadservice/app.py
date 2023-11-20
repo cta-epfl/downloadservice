@@ -328,19 +328,30 @@ def fetch(user, path):
 
     logger.info('fetching upstream url %s', url)
 
+    filename = os.path.basename(path)
+
+    try:
+        upstream_session = get_upstream_session(user)
+        upstream_session.__enter__()
+    except:
+        upstream_session.__exit__()
+        raise
+
     def generate():
-        with get_upstream_session(user) as upstream_session:
+        try:
             with upstream_session.get(url, stream=True) as f:
                 logger.debug('got response headers: %s', f.headers)
                 logger.info('opened %s', f)
                 for r in f.iter_content(chunk_size=chunk_size):
                     yield r
+        finally:
+            upstream_session.__exit__()
 
-    filename = os.path.basename(path)
     return Response(
         stream_with_context(generate()),
         headers={
-            'Content-Disposition': f'attachment; filename={filename}'
+            'Content-Disposition': f'attachment; filename={filename}',
+            'Content-Type': 'application/octet-stream'
         })
     # TODO print useful logs for loki
 
