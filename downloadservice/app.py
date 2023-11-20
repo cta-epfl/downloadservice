@@ -261,7 +261,8 @@ def list(user, path):
             'PROPFIND', upstream_url, headers={'Depth': '1'})
 
         if r.status_code not in [200, 207]:
-            return f'Error: {r.status_code} {r.content.decode()}', r.status_code
+            return f'Error: {r.status_code} {r.content.decode()}', \
+                r.status_code
 
         logger.debug('response: %s', r.content.decode())
 
@@ -331,10 +332,10 @@ def fetch(user, path):
     filename = os.path.basename(path)
 
     try:
-        upstream_session = get_upstream_session(user)
-        upstream_session.__enter__()
-    except:
-        upstream_session.__exit__(None, None, None)
+        context = get_upstream_session(user)
+        upstream_session = context.__enter__()
+    except Exception:
+        context.__exit__(None, None, None)
         raise
 
     def generate():
@@ -345,7 +346,7 @@ def fetch(user, path):
                 for r in f.iter_content(chunk_size=chunk_size):
                     yield r
         finally:
-            upstream_session.__exit__(None, None, None)
+            context.__exit__(None, None, None)
 
     return Response(
         stream_with_context(generate()),
@@ -409,7 +410,8 @@ def upload(user, path):
         logger.info('%s %s %s', url, r, r.text)
 
         if r.status_code not in [200, 201]:
-            return f'Error: {r.status_code} {r.content.decode()}', r.status_code
+            return f'Error: {r.status_code} {r.content.decode()}', \
+                r.status_code
         else:
             return {
                 'status': 'uploaded',
@@ -417,8 +419,8 @@ def upload(user, path):
                 'total_written': stats['total_written']
             }
 
-        # TODO: first simple and safe mechanism would be to let users upload only
-        # to their own specialized directory with hashed name
+        # TODO: first simple and safe mechanism would be to let users upload
+        # only to their own specialized directory with hashed name
 
         # return Response(stream_with_context(generate())), headers
         # TODO print useful logs for loki
