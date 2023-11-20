@@ -204,7 +204,7 @@ def get_upstream_session(user=None):
                 logger.error(
                     'Error while retrieving certificate : %s', r.content)
                 raise CertificateError(
-                    "Error while retrieving certificate: %s", r.text)
+                    f"Error while retrieving certificate: {r.text}")
 
             cert_file = os.path.join(tmpdir, 'certificate')
             cabundle_file = os.path.join(tmpdir, 'cabundle')
