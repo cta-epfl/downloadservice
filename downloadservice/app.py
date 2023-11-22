@@ -194,11 +194,13 @@ def get_upstream_session(user=None):
                 or header_token
 
             service_token = os.environ['JUPYTERHUB_API_TOKEN']
+            username = user
+            if isinstance(user, dict):
+                username = user['name']
 
             r = requests.get(
                 urljoin_multipart(os.environ['CTACS_URL'], '/certificate'),
-                params={'service-token': service_token,
-                        'user-token': user_token})
+                params={'service-token': service_token, 'user': username})
 
             if r.status_code != 200:
                 logger.error(
