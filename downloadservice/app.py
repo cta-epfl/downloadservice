@@ -189,9 +189,9 @@ def get_upstream_session(user=None):
             else:
                 header_token = None
 
-            user_token = session.get('token') \
-                or request.args.get('token') \
-                or header_token
+            # user_token = session.get('token') \
+            #     or request.args.get('token') \
+            #     or header_token
 
             service_token = os.environ['JUPYTERHUB_API_TOKEN']
             username = user
