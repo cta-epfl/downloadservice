@@ -1,20 +1,18 @@
-from datetime import date, datetime, timedelta
-from downloadservice.certificate import (
-    CertificateError, certificate_validity, verify_certificate
-)
+from contextlib import contextmanager
 from functools import wraps
-import os
-import stat
 import io
+import os
 import re
-from urllib.parse import urlparse
 import requests
 import secrets
+import stat
+import tempfile
+from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 import importlib.metadata
 from flask import (
-    Blueprint, Flask, Response, jsonify, make_response, redirect, request,
-    session, stream_with_context, render_template
+    Blueprint, Flask, Response, jsonify, make_response, redirect,
+    request, session, stream_with_context, render_template
 )
 from flask_cors import CORS
 
@@ -22,6 +20,13 @@ import logging
 
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
+
+
+class CertificateError(Exception):
+    def __init__(self, message="invalid certificate"):
+        self.message = message
+        super().__init__(self.message)
+
 
 sentry_sdk.init(
     dsn='https://452458c2a6630292629364221bff0dee@o4505709665976320' +
@@ -76,18 +81,8 @@ def create_app():
         'FLASK_SECRET', secrets.token_bytes(32))
     app.secret_key = app.config['SECRET_KEY']
 
-    app.config['OIDC_CLIENT_SECRETS'] = 'secrets.json'
-    app.config['OIDC_COOKIE_SECURE'] = False
-    app.config['OIDC_INTROSPECTION_AUTH_METHOD'] = 'client_secret_post'
-    app.config['OIDC_TOKEN_TYPE_HINT'] = 'access_token'
-    app.config['CTADS_CERTIFICATE_DIR'] = \
-        os.environ.get('CTADS_CERTIFICATE_DIR', './certificate/')
-    app.config['CTADS_CABUNDLE'] = \
-        os.environ.get('CTADS_CABUNDLE', '/etc/cabundle.pem')
-    app.config['CTADS_CLIENTCERT'] = \
-        os.environ.get('CTADS_CLIENTCERT', '/tmp/x509up_u1000')
-    app.config['CTADS_DISABLE_ALL_AUTH'] = \
-        os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
+    app.config['CTACS_URL'] = os.getenv('CTACS_URL', '')
+
     app.config['CTADS_UPSTREAM_ENDPOINT'] = \
         os.getenv('CTADS_UPSTREAM_ENDPOINT',
                   'https://dcache.cta.cscs.ch:2880/')
@@ -97,24 +92,8 @@ def create_app():
         os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
-
-    # Check certificate folder
-    os.makedirs(app.config['CTADS_CERTIFICATE_DIR'], exist_ok=True)
-
-    # Check certificates and their validity on startup
-    cabundle_file = app.config['CTADS_CABUNDLE']
-    cert_file = app.config['CTADS_CLIENTCERT']
-    try:
-        cabundle = open(cabundle_file, 'r').read()
-        with open(cert_file, 'r') as f:
-            certificate = f.read()
-            verify_certificate(cabundle, certificate)
-            if certificate_validity(certificate) <= datetime.now():
-                logger.warning('Configured certificate expired')
-    except FileNotFoundError:
-        logger.warning('No configured certificate')
-    except CertificateError:
-        logger.warning('Invalid configured certificate')
+    app.config['CTADS_DISABLE_ALL_AUTH'] = \
+        os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
 
     return app
 
@@ -123,7 +102,7 @@ app = create_app()
 
 
 @app.errorhandler(CertificateError)
-def handle_bad_request(e):
+def handle_certificate_error(e):
     sentry_sdk.capture_exception(e)
     return e.message, 400
 
@@ -184,135 +163,88 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
-@app.route(url_prefix + '/upload-cert', methods=['POST'])
+@app.route(url_prefix + '/test')
 @authenticated
-def upload_cert(user):
-    filename = user_to_path_fragment(user) + ".crt"
-    certificate_file = os.path.join(
-        app.config['CTADS_CERTIFICATE_DIR'], filename)
+def test(user):
+    user_token = session.get('token') or request.args.get('token')
 
-    certificate = request.json.get('certificate')
-
-    try:
-        cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
-    except FileNotFoundError:
-        return 'DownloadService cabundle not configured, ' + \
-            'please contact the administrator', 500
-    verify_certificate(cabundle, certificate)
-
-    validity = certificate_validity(certificate)
-    if validity.date() > date.today()+timedelta(days=7):
-        return 'certificate validity too long, please generate a ' +\
-            'short-lived (max 7 day) proxy certificate for uploading. ' +\
-            'Please see https://ctaodc.ch/ for more details.', 400
-    if validity <= datetime.today():
-        return 'certificate expired', 400
-
-    with open(certificate_file, 'w') as f:
-        f.write(certificate)
-    os.chmod(certificate_file, stat.S_IWUSR | stat.S_IRUSR)
-
-    return {'message': 'Certificate stored', 'validity': validity}, 200
+    return render_template(
+        'test.html', user=user, token=user_token, service=auth.user_for_token(
+            os.environ.get('JUPYTERHUB_API_TOKEN')))
 
 
-@app.route(url_prefix + '/upload-main-cert', methods=['POST'])
-@authenticated
-def upload_main_cert(user):
-    if not isinstance(user, dict) or user['admin'] is not True:
-        return 'access denied', 401
-
-    data = request.json
-    certificate = data.get('certificate', None)
-    cabundle = data.get('cabundle', None)
-
-    if certificate is None and cabundle is None:
-        return 'requests missing certificate or cabundle', 400
-
-    if cabundle is None:
-        cabundle = open(app.config['CTADS_CABUNDLE'], 'r').read()
-    if certificate is None:
-        certificate = open(app.config['CTADS_CLIENTCERT'], 'r').read()
-    verify_certificate(cabundle, certificate)
-
-    if certificate and certificate_validity(certificate).date() > \
-            (date.today()+timedelta(days=7)):
-        return 'certificate validity too long, please generate a ' +\
-            'short-lived (max 7 day) proxy certificate for uploading. ' +\
-            'Please see https://ctaodc.ch/ for more details.', 400
-
-    updated = set()
-    if certificate is not None:
-        with open(app.config['CTADS_CLIENTCERT'], 'w') as f:
-            f.write(certificate)
-            updated.add('Certificate')
-        os.chmod(app.config['CTADS_CLIENTCERT'], stat.S_IWUSR | stat.S_IRUSR)
-    if cabundle is not None:
-        with open(app.config['CTADS_CABUNDLE'], 'w') as f:
-            f.write(cabundle)
-            updated.add('CABundle')
-        os.chmod(
-            app.config['CTADS_CABUNDLE'],
-            stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-
-    return {
-        'message': ' and '.join(updated) + ' stored',
-        'cabundleUploaded': cabundle is not None,
-        'certificateUploaded': certificate is not None,
-    }, 200
-
-
+# TODO: transform into a generator
+@contextmanager
 def get_upstream_session(user=None):
-    session = requests.Session()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        if user is None:
+            raise Exception("Missing user")
 
-    cert = app.config['CTADS_CLIENTCERT']
-    own_certificate = False
-    if user is not None:
-        filename = user_to_path_fragment(user) + ".crt"
-        own_certificate_file = os.path.join(
-            app.config['CTADS_CERTIFICATE_DIR'], filename)
+        upstream_session = requests.Session()
 
-        if os.path.isfile(own_certificate_file):
-            own_certificate = True
-            cert = own_certificate_file
+        if not app.config['CTADS_DISABLE_ALL_AUTH']:
+            header = request.headers.get('Authorization')
+            if header and header.startswith('Bearer '):
+                header_token = header.removeprefix('Bearer ')
+            else:
+                header_token = None
 
-    try:
-        with open(cert, 'r') as f:
-            certificate = f.read()
-            if certificate_validity(certificate) <= datetime.now():
-                if own_certificate:
-                    raise 'Your configured certificate is invalid, ' + \
-                        'please refresh it.'
-                else:
-                    logger.exception('outdated main certificate')
-                    raise 'Service certificate invalid please contact us.'
+            # user_token = session.get('token') \
+            #     or request.args.get('token') \
+            #     or header_token
 
-            session.verify = app.config['CTADS_CABUNDLE']
-            session.cert = cert
-    except FileNotFoundError:
-        raise CertificateError('no valid certificate configured')
+            service_token = os.environ['JUPYTERHUB_API_TOKEN']
+            username = user
+            if isinstance(user, dict):
+                username = user['name']
 
-    return session
+            r = requests.get(
+                urljoin_multipart(os.environ['CTACS_URL'], '/certificate'),
+                params={'service-token': service_token, 'user': username})
+
+            if r.status_code != 200:
+                logger.error(
+                    'Error while retrieving certificate : %s', r.content)
+                raise CertificateError(
+                    f"Error while retrieving certificate: {r.text}")
+
+            cert_file = os.path.join(tmpdir, 'certificate')
+            cabundle_file = os.path.join(tmpdir, 'cabundle')
+            with open(cert_file, 'w') as f:
+                f.write(r.json().get('certificate'))
+            os.chmod(cert_file, stat.S_IRUSR)
+            with open(cabundle_file, 'w') as f:
+                f.write(r.json().get('cabundle'))
+            os.chmod(cabundle_file, stat.S_IRUSR)
+
+            upstream_session.cert = cert_file
+            upstream_session.verify = cabundle_file
+
+        yield upstream_session
 
 
 @app.route(url_prefix + '/health')
 def health():
+    return 'OK', 200
+
     url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
         app.config['CTADS_UPSTREAM_BASEFOLDER']
 
-    upstream_session = get_upstream_session()
-    try:
-        r = upstream_session.request('PROPFIND', url, headers={'Depth': '1'},
-                                     timeout=10)
-        if r.status_code in [200, 207]:
-            return 'OK', 200
-        else:
-            logger.error('service is unhealthy: %s', r.content.decode())
+    # TODO: Find another way to check without any token
+    with get_upstream_session() as upstream_session:
+        try:
+            r = upstream_session.request('PROPFIND', url, headers={
+                                         'Depth': '1'}, timeout=10)
+            if r.status_code in [200, 207]:
+                return 'OK', 200
+            else:
+                logger.error('service is unhealthy: %s', r.content.decode())
+                return 'Unhealthy!', 500
+        except requests.exceptions.ReadTimeout as e:
+            logger.error('service is unhealthy: %s', e)
+            sentry_sdk.capture_exception(e)
             return 'Unhealthy!', 500
-    except requests.exceptions.ReadTimeout as e:
-        logger.error('service is unhealthy: %s', e)
-        sentry_sdk.capture_exception(e)
-        return 'Unhealthy!', 500
 
 
 @app.route(url_prefix + '/list', methods=['GET', 'POST'],
@@ -328,60 +260,61 @@ def list(user, path):
         (path or '')
     )
 
-    upstream_session = get_upstream_session(user)
+    with get_upstream_session(user) as upstream_session:
+        r = upstream_session.request(
+            'PROPFIND', upstream_url, headers={'Depth': '1'})
 
-    r = upstream_session.request(
-        'PROPFIND', upstream_url, headers={'Depth': '1'})
+        if r.status_code not in [200, 207]:
+            return f'Error: {r.status_code} {r.content.decode()}', \
+                r.status_code
 
-    if r.status_code not in [200, 207]:
-        return f'Error: {r.status_code} {r.content.decode()}', r.status_code
+        logger.debug('response: %s', r.content.decode())
 
-    logger.debug('response: %s', r.content.decode())
+        try:
+            tree = ET.parse(io.BytesIO(r.content))
+            root = tree.getroot()
+        except ET.ParseError as e:
+            logger.error('Error parsing XML %s in %s', e, r.content)
+            raise
 
-    try:
-        tree = ET.parse(io.BytesIO(r.content))
-        root = tree.getroot()
-    except ET.ParseError as e:
-        logger.error('Error parsing XML %s in %s', e, r.content)
-        raise
+        logger.info('xml: %s', root)
 
-    logger.info('xml: %s', root)
+        entries = []
 
-    entries = []
-
-    keymap = dict([
-        ('{DAV:}href', 'href'),
-        ('{DAV:}getcontentlength', 'size'),
-        ('{DAV:}getlastmodified', 'mtime')
-    ])
-
-    for i in root.iter('{DAV:}response'):
-        logger.debug('i: %s', i)
-
-        entry = {}
-        entries.append(entry)
-
-        for j in i.iter():
-            logger.debug('> j: %s %s', j.tag, j.text)
-            if j.tag in keymap:
-                entry[keymap[j.tag]] = j.text
-
-        up = urlparse(request.url)
-        entry['href'] = re.sub(
-            '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'], '', entry['href'])
-
-        entry['url'] = '/'.join([
-            up.scheme + ':/', up.netloc,
-            re.sub(path, '', up.path), entry['href']
+        keymap = dict([
+            ('{DAV:}href', 'href'),
+            ('{DAV:}getcontentlength', 'size'),
+            ('{DAV:}getlastmodified', 'mtime')
         ])
 
-        if entry['href'].endswith('/'):
-            entry['type'] = 'directory'
-        else:
-            entry['type'] = 'file'
+        for i in root.iter('{DAV:}response'):
+            logger.debug('i: %s', i)
 
-    return jsonify(entries)
-    # TODO print useful logs for loki
+            entry = {}
+            entries.append(entry)
+
+            for j in i.iter():
+                logger.debug('> j: %s %s', j.tag, j.text)
+                if j.tag in keymap:
+                    entry[keymap[j.tag]] = j.text
+
+            up = urlparse(request.url)
+            entry['href'] = re.sub(
+                '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'],
+                '', entry['href'])
+
+            entry['url'] = '/'.join([
+                up.scheme + ':/', up.netloc,
+                re.sub(path, '', up.path), entry['href']
+            ])
+
+            if entry['href'].endswith('/'):
+                entry['type'] = 'directory'
+            else:
+                entry['type'] = 'file'
+
+        return jsonify(entries)
+        # TODO print useful logs for loki
 
 
 @app.route(url_prefix + '/fetch', methods=['GET', 'POST'],
@@ -400,20 +333,30 @@ def fetch(user, path):
 
     logger.info('fetching upstream url %s', url)
 
-    upstream_session = get_upstream_session(user)
+    filename = os.path.basename(path)
+
+    try:
+        context = get_upstream_session(user)
+        upstream_session = context.__enter__()
+    except Exception:
+        context.__exit__(None, None, None)
+        raise
 
     def generate():
-        with upstream_session.get(url, stream=True) as f:
-            logger.debug('got response headers: %s', f.headers)
-            logger.info('opened %s', f)
-            for r in f.iter_content(chunk_size=chunk_size):
-                yield r
+        try:
+            with upstream_session.get(url, stream=True) as f:
+                logger.debug('got response headers: %s', f.headers)
+                logger.info('opened %s', f)
+                for r in f.iter_content(chunk_size=chunk_size):
+                    yield r
+        finally:
+            context.__exit__(None, None, None)
 
-    filename = os.path.basename(path)
     return Response(
         stream_with_context(generate()),
         headers={
-            'Content-Disposition': f'attachment; filename={filename}'
+            'Content-Disposition': f'attachment; filename={filename}',
+            'Content-Type': 'application/octet-stream'
         })
     # TODO print useful logs for loki
 
@@ -429,7 +372,6 @@ def user_to_path_fragment(user):
 @app.route(url_prefix + '/upload/<path:path>', methods=['POST'])
 @authenticated
 def upload(user, path):
-
     # TODO: Not secure for production
     if '..' in path:
         return "Error: path cannot contain '..'", 400
@@ -455,37 +397,37 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    upstream_session = get_upstream_session(user)
+    with get_upstream_session(user) as upstream_session:
+        r = upstream_session.request('MKCOL', baseurl)
 
-    r = upstream_session.request('MKCOL', baseurl)
+        stats = dict(total_written=0)
 
-    stats = dict(total_written=0)
+        def generate(stats):
+            while r := request.stream.read(chunk_size):
+                logger.info('read %s Mb total %s Mb',
+                            len(r)/1024**2, stats['total_written']/1024**2)
+                stats['total_written'] += len(r)
+                yield r
 
-    def generate(stats):
-        while r := request.stream.read(chunk_size):
-            logger.info('read %s Mb total %s Mb',
-                        len(r)/1024**2, stats['total_written']/1024**2)
-            stats['total_written'] += len(r)
-            yield r
+        r = upstream_session.put(url, data=generate(stats))
 
-    r = upstream_session.put(url, data=generate(stats))
+        logger.info('%s %s %s', url, r, r.text)
 
-    logger.info('%s %s %s', url, r, r.text)
+        if r.status_code not in [200, 201]:
+            return f'Error: {r.status_code} {r.content.decode()}', \
+                r.status_code
+        else:
+            return {
+                'status': 'uploaded',
+                'path': upload_path,
+                'total_written': stats['total_written']
+            }
 
-    if r.status_code not in [200, 201]:
-        return f'Error: {r.status_code} {r.content.decode()}', r.status_code
-    else:
-        return {
-            'status': 'uploaded',
-            'path': upload_path,
-            'total_written': stats['total_written']
-        }
+        # TODO: first simple and safe mechanism would be to let users upload
+        # only to their own specialized directory with hashed name
 
-    # TODO: first simple and safe mechanism would be to let users upload only
-    # to their own specialized directory with hashed name
-
-    # return Response(stream_with_context(generate())), headers
-    # TODO print useful logs for loki
+        # return Response(stream_with_context(generate())), headers
+        # TODO print useful logs for loki
 
 
 @app.route(url_prefix + '/oauth_callback')
@@ -505,8 +447,7 @@ def oauth_callback():
     # store token in session cookie
     session['token'] = token
     next_url = auth.get_next_url(cookie_state) or url_prefix
-    response = make_response(redirect(next_url))
-    return response
+    return make_response(redirect(next_url))
 
 
 webdav_methods = ['GET', 'HEAD',  'MKCOL', 'OPTIONS',
@@ -548,41 +489,40 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    upstream_session = get_upstream_session(user)
+    with get_upstream_session(user) as upstream_session:
+        res = upstream_session.request(
+            method=request.method,
+            url=urljoin_multipart(API_HOST, path),
+            # exclude 'host' and 'authorization' header
+            headers={k: v for k, v in request.headers
+                     if k.lower() not in ['host', 'authorization'] and
+                     k.lower() not in excluded_headers},
+            data=request_datastream(),
+            cookies=request.cookies,
+            allow_redirects=False,
+        )
 
-    res = upstream_session.request(
-        method=request.method,
-        url=urljoin_multipart(API_HOST, path),
-        # exclude 'host' and 'authorization' header
-        headers={k: v for k, v in request.headers
-                 if k.lower() not in ['host', 'authorization'] and
-                 k.lower() not in excluded_headers},
-        data=request_datastream(),
-        cookies=request.cookies,
-        allow_redirects=False,
-    )
+        headers = [
+            (k, v) for k, v in res.raw.headers.items()
+            if k.lower() not in excluded_headers
+        ]
 
-    headers = [
-        (k, v) for k, v in res.raw.headers.items()
-        if k.lower() not in excluded_headers
-    ]
+        endpoint_prefix = url_prefix+'/webdav'
 
-    endpoint_prefix = url_prefix+'/webdav'
+        def is_prop_method():
+            return request.method in ['PROPFIND', 'PROPPATCH']
 
-    def is_prop_method():
-        return request.method in ['PROPFIND', 'PROPPATCH']
+        def prop_content():
+            return res.content\
+                .replace(
+                    (':href>/' +
+                     app.config['CTADS_UPSTREAM_BASEFOLDER'] + '/').encode(),
+                    (':href>'+endpoint_prefix+'/' +
+                     app.config['CTADS_UPSTREAM_BASEFOLDER']+'/').encode()
+                )
 
-    def prop_content():
-        return res.content\
-            .replace(
-                (':href>/' +
-                 app.config['CTADS_UPSTREAM_BASEFOLDER'] + '/').encode(),
-                (':href>'+endpoint_prefix+'/' +
-                 app.config['CTADS_UPSTREAM_BASEFOLDER']+'/').encode()
-            )
-
-    return Response(
-        prop_content() if is_prop_method else res.content,
-        res.status_code,
-        headers
-    )
+        return Response(
+            prop_content() if is_prop_method else res.content,
+            res.status_code,
+            headers
+        )

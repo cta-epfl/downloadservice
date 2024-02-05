@@ -16,6 +16,11 @@
         {% else %}
             <p>Welcome, please contact us to get acces to the <em>download service</em></p>
         {% endif %}
+        {% if service %}
+            <p>Service : {{service}}</p>
+        {% else %}
+            <p>No service defined</p>
+        {% endif %}
     </main>
   </body>
 </html>
