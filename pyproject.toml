@@ -1,17 +1,17 @@
 [tool.poetry]
 name = "downloadservice"
-version = "0.4.4"
+version = "0.4.5"
 description = ""
 authors = ["Volodymyr Savchenko <contact@volodymyrsavchenko.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
 flask-oidc2 = "^1.5.0"
-flask-oidc = "^1.4.0"
+flask-oidc = "^2.1.0"
 requests = "^2.31.0"
 sentry-sdk = {extras = ["flask"], version = "^1.30.0"}
-importlib-metadata = "^6.8.0"
-pyopenssl = "^23.2.0"
+importlib-metadata = "^7.0.0"
+pyopenssl = "^24.0.0"
 flask-cors = "^4.0.0"
 
 [tool.poetry.group.jupyterhub.dependencies]
@@ -21,7 +21,7 @@ jupyterhub = "^4.0.1"
 optional = true
 
 [tool.poetry.group.test.dependencies]
-ctadata = { git = "https://github.com/cta-epfl/ctadata.git", tag = "v0.4.2" }
+ctadata = { git = "https://github.com/cta-epfl/ctadata.git", tag = "v0.4.3" }
 pytest = "^7.3.2"
 psutil = "^5.9.5"
 pytest-flask = "^1.2.0"
