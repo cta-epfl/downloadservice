@@ -184,10 +184,10 @@ def get_upstream_session(user=None):
 
         if not app.config['CTADS_DISABLE_ALL_AUTH']:
             header = request.headers.get('Authorization')
-            if header and header.startswith('Bearer '):
-                header_token = header.removeprefix('Bearer ')
-            else:
-                header_token = None
+            # if header and header.startswith('Bearer '):
+            #     header_token = header.removeprefix('Bearer ')
+            # else:
+            #     header_token = None
 
             # user_token = session.get('token') \
             #     or request.args.get('token') \
