@@ -222,7 +222,7 @@ def storage_status():
             if r.status_code in [200, 207]:
                 return 'OK', 200
             else:
-                logger.error('service is unhealthy: %s', r.content.decode())
+                logger.error('service is unhealthy')
                 return 'Unhealthy!', 500
         except requests.exceptions.ReadTimeout as e:
             logger.error('service is unhealthy: %s', e)
