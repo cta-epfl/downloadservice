@@ -205,7 +205,7 @@ def get_upstream_session(user=None):
 @app.route(url_prefix + '/health')
 def health():
     # Different from /dcache-status as the service might be up without dcache
-    return 'OK', 200
+    return 'OK - DownloadService is up and running', 200
 
 
 @app.route(url_prefix + '/storage-status')
@@ -220,14 +220,14 @@ def storage_status():
             r = upstream_session.request('PROPFIND', url, headers={
                                          'Depth': '1'}, timeout=10)
             if r.status_code in [200, 207]:
-                return 'OK', 200
+                return 'OK - DCache is accessible using configured shared certificate', 200
             else:
                 logger.error('service is unhealthy')
-                return 'Unhealthy!', 500
+                return 'Unhealthy! - DCache is not accessible using configured shared certificate', 500
         except requests.exceptions.ReadTimeout as e:
             logger.error('service is unhealthy: %s', e)
             sentry_sdk.capture_exception(e)
-            return 'Unhealthy!', 500
+            return 'Unhealthy! - DCache is not accessible using configured shared certificate', 500
 
 
 @app.route(url_prefix + '/list', methods=['GET', 'POST'],
@@ -235,8 +235,6 @@ def storage_status():
 @app.route(url_prefix + '/list/<path:path>', methods=['GET', 'POST'])
 @authenticated
 def list(user, path):
-    # host = request.headers['Host']
-
     upstream_url = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
         app.config['CTADS_UPSTREAM_BASEPATH'],
