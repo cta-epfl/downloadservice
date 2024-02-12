@@ -220,14 +220,17 @@ def storage_status():
             r = upstream_session.request('PROPFIND', url, headers={
                                          'Depth': '1'}, timeout=10)
             if r.status_code in [200, 207]:
-                return 'OK - DCache is accessible using configured shared certificate', 200
+                return 'OK - DCache is accessible using configured ' + \
+                    'shared certificate', 200
             else:
                 logger.error('service is unhealthy')
-                return 'Unhealthy! - DCache is not accessible using configured shared certificate', 500
+                return 'Unhealthy! - DCache is not accessible using ' + \
+                    'configured shared certificate', 500
         except requests.exceptions.ReadTimeout as e:
             logger.error('service is unhealthy: %s', e)
             sentry_sdk.capture_exception(e)
-            return 'Unhealthy! - DCache is not accessible using configured shared certificate', 500
+            return 'Unhealthy! - DCache is not accessible using ' + \
+                'configured shared certificate', 500
 
 
 @app.route(url_prefix + '/list', methods=['GET', 'POST'],
