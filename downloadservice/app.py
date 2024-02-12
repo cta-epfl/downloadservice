@@ -88,10 +88,10 @@ def create_app():
                   'https://dcache.cta.cscs.ch:2880/')
     app.config['CTADS_UPSTREAM_BASEPATH'] = \
         os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
-    app.config['CTADS_UPSTREAM_BASEPATH'] = \
-        os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
+    app.config['CTADS_UPSTREAM_HEALTH_BASEFOLDER'] = \
+        os.getenv('CTADS_UPSTREAM_HEALTH_BASEFOLDER', 'cta')
     app.config['CTADS_DISABLE_ALL_AUTH'] = \
         os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
 
@@ -212,7 +212,7 @@ def health():
 def storage_status():
     url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
-        app.config['CTADS_UPSTREAM_BASEFOLDER']
+        app.config['CTADS_UPSTREAM_HEALTH_BASEFOLDER']
 
     # Find another way to check without any token
     with get_upstream_session('shared::certificate') as upstream_session:
