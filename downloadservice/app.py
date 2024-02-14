@@ -88,10 +88,10 @@ def create_app():
                   'https://dcache.cta.cscs.ch:2880/')
     app.config['CTADS_UPSTREAM_BASEPATH'] = \
         os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
-    app.config['CTADS_UPSTREAM_BASEPATH'] = \
-        os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
+    app.config['CTADS_UPSTREAM_HEALTH_BASEFOLDER'] = \
+        os.getenv('CTADS_UPSTREAM_HEALTH_BASEFOLDER', 'cta')
     app.config['CTADS_DISABLE_ALL_AUTH'] = \
         os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
 
@@ -163,17 +163,6 @@ def login(user):
     return render_template('index.html', user=user, token=token)
 
 
-@app.route(url_prefix + '/test')
-@authenticated
-def test(user):
-    user_token = session.get('token') or request.args.get('token')
-
-    return render_template(
-        'test.html', user=user, token=user_token, service=auth.user_for_token(
-            os.environ.get('JUPYTERHUB_API_TOKEN')))
-
-
-# TODO: transform into a generator
 @contextmanager
 def get_upstream_session(user=None):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -183,16 +172,6 @@ def get_upstream_session(user=None):
         upstream_session = requests.Session()
 
         if not app.config['CTADS_DISABLE_ALL_AUTH']:
-            header = request.headers.get('Authorization')
-            if header and header.startswith('Bearer '):
-                header_token = header.removeprefix('Bearer ')
-            else:
-                header_token = None
-
-            # user_token = session.get('token') \
-            #     or request.args.get('token') \
-            #     or header_token
-
             service_token = os.environ['JUPYTERHUB_API_TOKEN']
             username = user
             if isinstance(user, dict):
@@ -225,26 +204,33 @@ def get_upstream_session(user=None):
 
 @app.route(url_prefix + '/health')
 def health():
-    return 'OK', 200
+    # Different from /dcache-status as the service might be up without dcache
+    return 'OK - DownloadService is up and running', 200
 
+
+@app.route(url_prefix + '/storage-status')
+def storage_status():
     url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
         app.config['CTADS_UPSTREAM_BASEPATH'] + \
-        app.config['CTADS_UPSTREAM_BASEFOLDER']
+        app.config['CTADS_UPSTREAM_HEALTH_BASEFOLDER']
 
-    # TODO: Find another way to check without any token
-    with get_upstream_session() as upstream_session:
+    # Find another way to check without any token
+    with get_upstream_session('shared::certificate') as upstream_session:
         try:
             r = upstream_session.request('PROPFIND', url, headers={
                                          'Depth': '1'}, timeout=10)
             if r.status_code in [200, 207]:
-                return 'OK', 200
+                return 'OK - DCache is accessible using configured ' + \
+                    'shared certificate', 200
             else:
-                logger.error('service is unhealthy: %s', r.content.decode())
-                return 'Unhealthy!', 500
+                logger.error('service is unhealthy')
+                return 'Unhealthy! - DCache is not accessible using ' + \
+                    'configured shared certificate', 500
         except requests.exceptions.ReadTimeout as e:
             logger.error('service is unhealthy: %s', e)
             sentry_sdk.capture_exception(e)
-            return 'Unhealthy!', 500
+            return 'Unhealthy! - DCache is not accessible using ' + \
+                'configured shared certificate', 500
 
 
 @app.route(url_prefix + '/list', methods=['GET', 'POST'],
@@ -252,8 +238,6 @@ def health():
 @app.route(url_prefix + '/list/<path:path>', methods=['GET', 'POST'])
 @authenticated
 def list(user, path):
-    # host = request.headers['Host']
-
     upstream_url = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
         app.config['CTADS_UPSTREAM_BASEPATH'],
