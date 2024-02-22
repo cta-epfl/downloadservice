@@ -183,7 +183,7 @@ def get_upstream_session(user=None):
 
             if r.status_code != 200:
                 logger.error(
-                    'Error while retrieving certificate : %s', r.content)
+                    f'Error while retrieving certificate : {r.content}')
                 raise CertificateError(
                     f"Error while retrieving certificate: {r.text}")
 
