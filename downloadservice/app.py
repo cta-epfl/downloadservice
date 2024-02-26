@@ -369,15 +369,15 @@ def upload(user, path):
     selected_base_folder = None
     for base_folder in potential_folders:
         try:
-            list(user, urljoin_multipart(base_folder, 'users'))
+            list(path=urljoin_multipart(base_folder, 'users'))
             selected_base_folder = base_folder
             break
-        except:
+        except Exception:
             pass
 
     if selected_base_folder is None:
-        return f'Error: 403 No permissions to upload files', \
-            403
+        return 'Access denied', \
+            '403 Missing rights to upload files'
 
     upload_base_path = urljoin_multipart(
         selected_base_folder,
@@ -516,16 +516,17 @@ def webdav(user, path):
             if k.lower() not in excluded_headers
         ]
 
-        endpoint_prefix = url_prefix+'/webdav'
+        endpoint_prefix = '/'+urljoin_multipart(url_prefix, 'webdav')
 
         def is_prop_method():
             return request.method in ['PROPFIND', 'PROPPATCH']
 
         def prop_content():
-            base_path = f"/{app.config['CTADS_UPSTREAM_BASEPATH']}/"
+            base_path = f"/{app.config['CTADS_UPSTREAM_BASEPATH']}/"\
+                .replace('//', '/')
             return res.content.replace(
-                (':href>'+base_path+'/').encode(),
-                (':href>'+endpoint_prefix+base_path+'/').encode())
+                (':href>'+base_path).encode(),
+                (':href>'+endpoint_prefix+base_path).encode())
 
         return Response(
             prop_content() if is_prop_method else res.content,

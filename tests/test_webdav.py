@@ -31,8 +31,8 @@ def test_webdav4_client_upload_denied_1(testing_download_service):
                 except HTTPError as e:
                     print(e.__str__())
                     assert "received 403 (Missing rights to write in : " +\
-                        f"lst/{remote_file}, you are only allowed to write " +\
-                        "in lst/users/anonymous/)" == \
+                        f"lst/{remote_file}, you are not allowed " +\
+                        "to write in this folder)" == \
                         e.__str__()
                     raise e
 
@@ -55,8 +55,8 @@ def test_webdav4_client_upload_denied_2(testing_download_service):
                 except HTTPError as e:
                     print(e.__str__())
                     assert "received 403 (Missing rights to write in : " +\
-                        f"lst/{parsed_remote_file}, you are only allowed to" +\
-                        " write in lst/users/anonymous/)" == \
+                        f"lst/{parsed_remote_file}, you are not allowed " +\
+                        "to write in this folder)" == \
                         e.__str__()
                     raise e
 
