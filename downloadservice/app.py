@@ -301,7 +301,7 @@ def list(user, path):
             else:
                 entry['type'] = 'file'
 
-        return jsonify(entries)
+        return jsonify(entries), 200
         # TODO print useful logs for loki
 
 
@@ -369,7 +369,9 @@ def upload(user, path):
     selected_base_folder = None
     for base_folder in potential_folders:
         try:
-            list(path=urljoin_multipart(base_folder, 'users'))
+            _, status_code = list(path=urljoin_multipart(base_folder, 'users'))
+            if status_code not in [200, 207]:
+                continue
             selected_base_folder = base_folder
             break
         except Exception:
