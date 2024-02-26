@@ -241,7 +241,7 @@ def storage_status():
            defaults={'path': ''})
 @app.route(url_prefix + '/list/<path:path>', methods=['GET', 'POST'])
 @authenticated
-def list(user, path):
+def list_dir(user, path):
     upstream_url = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
         app.config['CTADS_UPSTREAM_BASEPATH'],
@@ -369,7 +369,8 @@ def upload(user, path):
     selected_base_folder = None
     for base_folder in potential_folders:
         try:
-            _, status_code = list(path=urljoin_multipart(base_folder, 'users'))
+            _, status_code = list_dir(
+                path=urljoin_multipart(base_folder, 'users'))
             if status_code not in [200, 207]:
                 continue
             selected_base_folder = base_folder

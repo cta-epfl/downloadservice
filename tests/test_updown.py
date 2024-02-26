@@ -18,7 +18,7 @@ def test_health(app: Any, client: Any):
 @pytest.mark.timeout(30)
 def test_list(app: Any, client: Any):
     with upstream_webdav_server():
-        r = client.get(url_for('list', path="lst"))
+        r = client.get(url_for('list_dir', path="lst"))
         assert r.status_code == 200
         print(r.json)
 
