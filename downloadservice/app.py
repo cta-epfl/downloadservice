@@ -289,7 +289,7 @@ def list(user, path):
 
             entry['url'] = '/'.join([
                 up.scheme + ':/', up.netloc,
-                re.sub(path, '', up.path), entry['href']
+                re.sub(path, '', up.path).strip('/'), entry['href']
             ])
 
             if entry['href'].endswith('/'):
