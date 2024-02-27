@@ -293,7 +293,7 @@ def list_dir(user, path):
                 '', entry['href'])
 
             entry['url'] = '/'.join([
-                app.config['JH_BASE_URL'] or (up.scheme + ':/', up.netloc),
+                app.config['JH_BASE_URL'] or up.scheme + '://' + up.netloc,
                 re.sub(path, '', up.path).strip('/'), entry['href']
             ])
 
