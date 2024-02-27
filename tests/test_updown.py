@@ -20,7 +20,14 @@ def test_list(app: Any, client: Any):
     with upstream_webdav_server():
         r = client.get(url_for('list_dir', path="lst"))
         assert r.status_code == 200
-        print(r.json)
+
+        expected_urls = ['http://app/list/lst/',
+                         'http://app/list/lst/users/']
+        expected_hrefs = ['lst/',
+                          'lst/users/']
+
+        assert set([e['url'] for e in r.json]) == set(expected_urls)
+        assert set([e['href'] for e in r.json]) == set(expected_hrefs)
 
 
 @pytest.mark.timeout(30)
