@@ -81,6 +81,7 @@ def create_app():
     app.secret_key = app.config['SECRET_KEY']
 
     app.config['CTACS_URL'] = os.getenv('CTACS_URL', '')
+    app.config['JH_BASE_URL'] = os.getenv('JH_BASE_URL', '').strip('/')
 
     app.config['CTADS_UPSTREAM_ENDPOINT'] = \
         os.getenv('CTADS_UPSTREAM_ENDPOINT',
@@ -292,7 +293,7 @@ def list_dir(user, path):
                 '', entry['href'])
 
             entry['url'] = '/'.join([
-                up.scheme + ':/', up.netloc,
+                app.config['JH_BASE_URL'] or up.scheme + '://' + up.netloc,
                 re.sub(path, '', up.path).strip('/'), entry['href']
             ])
 

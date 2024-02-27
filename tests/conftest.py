@@ -44,6 +44,7 @@ def app():
         "TESTING": True,
         "CTADS_DISABLE_ALL_AUTH": True,
         "DEBUG": True,
+        "JH_BASE_URL": "https://app",
         'CTADS_UPSTREAM_ENDPOINT':
             f'http://{webdav_server_host}:{str(webdav_server_port)}/',
         'CTADS_UPSTREAM_BASEPATH': '',

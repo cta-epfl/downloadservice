@@ -21,8 +21,8 @@ def test_list(app: Any, client: Any):
         r = client.get(url_for('list_dir', path="lst"))
         assert r.status_code == 200
 
-        expected_urls = ['http://app/list/lst/',
-                         'http://app/list/lst/users/']
+        expected_urls = ['https://app/list/lst/',
+                         'https://app/list/lst/users/']
         expected_hrefs = ['lst/',
                           'lst/users/']
 
