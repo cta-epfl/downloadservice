@@ -111,16 +111,24 @@ def test_apiclient_upload_invalid_path(testing_download_service):
 
 @pytest.mark.timeout(30)
 def test_apiclient_upload_wrong(testing_download_service):
-    with upstream_webdav_server():
+    with upstream_webdav_server() as (server_dir, _):
         ctadata.APIClient.downloadservice = testing_download_service['url']
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            local_file = f"{tmpdir}/local-file-example"
-            generate_random_file(local_file, 1 * (1024**2))
+            origin_file = f"{tmpdir}/local-file-example"
+            generate_random_file(origin_file, 1 * (1024**2))
 
-            with pytest.raises(ctadata.api.StorageException):
-                ctadata.upload_file(
-                    local_file, 'example-files/example-file/../')
+            remote_path = 'example-files/example-file/../'
+            r = ctadata.upload_file(origin_file, remote_path)
+
+            restored_file = f"{tmpdir}/restored-file"
+            ctadata.fetch_and_save_file(r['path'], restored_file)
+
+            assert hash_file(origin_file) == hash_file(restored_file)
+
+            remote_file = f"{server_dir}/lst/users/anonymous/" +\
+                "example-files/local-file-example"
+            assert os.path.isfile(remote_file)
 
 
 @pytest.mark.timeout(30)
