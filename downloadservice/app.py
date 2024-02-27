@@ -44,7 +44,6 @@ sentry_sdk.init(
     environment=os.environ.get('SENTRY_ENVIRONMENT', 'dev'),
 )
 
-# from flask_oidc import OpenIDConnect
 logger = logging.getLogger(__name__)
 
 
@@ -68,7 +67,7 @@ except Exception:
 bp = Blueprint('downloadservice', __name__,
                template_folder='templates')
 
-url_prefix = os.getenv('JUPYTERHUB_SERVICE_PREFIX', '').rstrip('/')
+url_prefix = '/'+os.getenv('JUPYTERHUB_SERVICE_PREFIX', '').strip('/')
 
 default_chunk_size = 10 * 1024 * 1024
 
@@ -85,13 +84,16 @@ def create_app():
 
     app.config['CTADS_UPSTREAM_ENDPOINT'] = \
         os.getenv('CTADS_UPSTREAM_ENDPOINT',
-                  'https://dcache.cta.cscs.ch:2880/')
+                  'https://dcache.cta.cscs.ch:2880').strip('/')
     app.config['CTADS_UPSTREAM_BASEPATH'] = \
-        os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch/')
+        os.getenv('CTADS_UPSTREAM_BASEPATH', 'pnfs/cta.cscs.ch').strip('/')
     app.config['CTADS_UPSTREAM_BASEFOLDER'] = \
-        os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst')
+        os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst').strip('/')
+    app.config['CTADS_UPSTREAM_UPLOAD_FOLDERS'] = os.getenv(
+        'CTADS_UPSTREAM_UPLOAD_FOLDERS', 'lst,cta').split(',')
     app.config['CTADS_UPSTREAM_HEALTH_BASEFOLDER'] = \
-        os.getenv('CTADS_UPSTREAM_HEALTH_BASEFOLDER', 'cta')
+        os.getenv('CTADS_UPSTREAM_HEALTH_BASEFOLDER', 'cta').strip('/')
+
     app.config['CTADS_DISABLE_ALL_AUTH'] = \
         os.getenv('CTADS_DISABLE_ALL_AUTH', 'False') == 'True'
 
@@ -210,9 +212,11 @@ def health():
 
 @app.route(url_prefix + '/storage-status')
 def storage_status():
-    url = app.config['CTADS_UPSTREAM_ENDPOINT'] + \
-        app.config['CTADS_UPSTREAM_BASEPATH'] + \
+    url = urljoin_multipart(
+        app.config['CTADS_UPSTREAM_ENDPOINT'],
+        app.config['CTADS_UPSTREAM_BASEPATH'],
         app.config['CTADS_UPSTREAM_HEALTH_BASEFOLDER']
+    )
 
     # Find another way to check without any token
     with get_upstream_session('shared::certificate') as upstream_session:
@@ -237,7 +241,7 @@ def storage_status():
            defaults={'path': ''})
 @app.route(url_prefix + '/list/<path:path>', methods=['GET', 'POST'])
 @authenticated
-def list(user, path):
+def list_dir(user, path):
     upstream_url = urljoin_multipart(
         app.config['CTADS_UPSTREAM_ENDPOINT'],
         app.config['CTADS_UPSTREAM_BASEPATH'],
@@ -284,7 +288,7 @@ def list(user, path):
 
             up = urlparse(request.url)
             entry['href'] = re.sub(
-                '^/*' + app.config['CTADS_UPSTREAM_BASEPATH'],
+                '^/*'+app.config['CTADS_UPSTREAM_BASEPATH']+'/',
                 '', entry['href'])
 
             entry['url'] = '/'.join([
@@ -297,7 +301,7 @@ def list(user, path):
             else:
                 entry['type'] = 'file'
 
-        return jsonify(entries)
+        return jsonify(entries), 200
         # TODO print useful logs for loki
 
 
@@ -360,8 +364,26 @@ def upload(user, path):
     if '..' in path:
         return "Error: path cannot contain '..'", 400
 
+    # check if upload folder is accessible
+    potential_folders = app.config['CTADS_UPSTREAM_UPLOAD_FOLDERS']
+    selected_base_folder = None
+    for base_folder in potential_folders:
+        try:
+            _, status_code = list_dir(
+                path=urljoin_multipart(base_folder, 'users'))
+            if status_code not in [200, 207]:
+                continue
+            selected_base_folder = base_folder
+            break
+        except Exception:
+            pass
+
+    if selected_base_folder is None:
+        return 'Access denied', \
+            '403 Missing rights to upload files'
+
     upload_base_path = urljoin_multipart(
-        app.config['CTADS_UPSTREAM_BASEFOLDER'],
+        selected_base_folder,
         'users',
         user_to_path_fragment(user))
     upload_path = urljoin_multipart(upload_base_path, path)
@@ -451,16 +473,22 @@ def webdav(user, path):
     )
 
     if request.method not in ['GET', 'HEAD', 'OPTIONS', 'PROPFIND', 'TRACE']:
-        required_path_prefix = urljoin_multipart(
-            app.config['CTADS_UPSTREAM_BASEFOLDER'],
-            'users',
-            user_to_path_fragment(user)) + '/'
+        # check if upload folder is accessible
+        potential_folders = app.config['CTADS_UPSTREAM_UPLOAD_FOLDERS']
+        selected_base_folder = None
+        for base_folder in potential_folders:
+            required_path_prefix = urljoin_multipart(
+                base_folder,
+                'users',
+                user_to_path_fragment(user)) + '/'
+            if path.startswith(required_path_prefix):
+                selected_base_folder = base_folder
+                break
 
-        if not path.startswith(required_path_prefix):
+        if selected_base_folder is None:
             return 'Access denied', \
                 f'403 Missing rights to write in : {path}, ' + \
-                'you are only allowed to write in ' + \
-                required_path_prefix
+                'you are not allowed to write in this folder'
 
     # Exclude all "hop-by-hop headers" defined by RFC 2616
     # section 13.5.1 ref. https://www.rfc-editor.org/rfc/rfc2616#section-13.5.1
@@ -491,19 +519,17 @@ def webdav(user, path):
             if k.lower() not in excluded_headers
         ]
 
-        endpoint_prefix = url_prefix+'/webdav'
+        endpoint_prefix = '/'+urljoin_multipart(url_prefix, 'webdav')
 
         def is_prop_method():
             return request.method in ['PROPFIND', 'PROPPATCH']
 
         def prop_content():
-            return res.content\
-                .replace(
-                    (':href>/' +
-                     app.config['CTADS_UPSTREAM_BASEFOLDER'] + '/').encode(),
-                    (':href>'+endpoint_prefix+'/' +
-                     app.config['CTADS_UPSTREAM_BASEFOLDER']+'/').encode()
-                )
+            base_path = f"/{app.config['CTADS_UPSTREAM_BASEPATH']}/"\
+                .replace('//', '/')
+            return res.content.replace(
+                (':href>'+base_path).encode(),
+                (':href>'+endpoint_prefix+base_path).encode())
 
         return Response(
             prop_content() if is_prop_method else res.content,
