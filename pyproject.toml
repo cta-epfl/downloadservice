@@ -6,8 +6,6 @@ authors = ["Volodymyr Savchenko <contact@volodymyrsavchenko.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-flask-oidc2 = "^1.5.0"
-flask-oidc = "^2.1.0"
 requests = "^2.31.0"
 sentry-sdk = {extras = ["flask"], version = "^1.30.0"}
 importlib-metadata = "^7.0.0"
