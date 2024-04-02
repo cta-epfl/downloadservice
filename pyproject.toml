@@ -7,27 +7,27 @@ authors = ["Volodymyr Savchenko <contact@volodymyrsavchenko.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 requests = "^2.31.0"
-sentry-sdk = {extras = ["flask"], version = "^1.30.0"}
+sentry-sdk = {extras = ["flask"], version = "^1.44.0"}
 importlib-metadata = "^7.0.0"
 pyopenssl = "^24.0.0"
 flask-cors = "^4.0.0"
 
 [tool.poetry.group.jupyterhub.dependencies]
-jupyterhub = "^4.0.1"
+jupyterhub = "^4.1.4"
 
 [tool.poetry.group.test]
 optional = true
 
 [tool.poetry.group.test.dependencies]
 ctadata = { git = "https://github.com/cta-epfl/ctadata.git", tag = "v0.4.6" }
-pytest = "^7.3.2"
+pytest = "^8.1.1"
 psutil = "^5.9.5"
 pytest-flask = "^1.2.0"
 pytest-timeout = "^2.1.0"
 cheroot = "^10.0.0"
 xmltodict = "^0.13.0"
 webdav4 = "^0.9.8"
-wsgidav = "^4.3.0"
+wsgidav = "^4.3.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

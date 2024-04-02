@@ -734,13 +734,13 @@ traitlets = "*"
 
 [[package]]
 name = "jupyterhub"
-version = "4.1.0"
+version = "4.1.4"
 description = "JupyterHub: A multi-user server for Jupyter notebooks"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyterhub-4.1.0-py3-none-any.whl", hash = "sha256:3f5eab07134d7cbc82e1bcec06ca4b5822a1a9ea6f6781dd7acbdc9490349d82"},
-    {file = "jupyterhub-4.1.0.tar.gz", hash = "sha256:b0aa4d9db9a983981680bca867ed79152578fe83c9a832774ee13905b7b7574c"},
+    {file = "jupyterhub-4.1.4-py3-none-any.whl", hash = "sha256:c6cd33a07f614a61bf9a40106e5187275986f108164cdcc39dd0157d50631c67"},
+    {file = "jupyterhub-4.1.4.tar.gz", hash = "sha256:773c82bfeed9a57daabda32579cf834d553827337600368320e822e73f6c92dd"},
 ]
 
 [package.dependencies]
@@ -989,13 +989,13 @@ test = ["pretend", "pytest (>=3.0.1)", "pytest-rerunfailures"]
 
 [[package]]
 name = "pytest"
-version = "7.4.4"
+version = "8.1.1"
 description = "pytest: simple powerful testing with Python"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "pytest-7.4.4-py3-none-any.whl", hash = "sha256:b090cdf5ed60bf4c45261be03239c2c1c22df034fbffe691abe93cd80cea01d8"},
-    {file = "pytest-7.4.4.tar.gz", hash = "sha256:2cf0005922c6ace4a3e2ec8b4080eb0d9753fdc93107415332f50ce9e7994280"},
+    {file = "pytest-8.1.1-py3-none-any.whl", hash = "sha256:2a8386cfc11fa9d2c50ee7b2a57e7d898ef90470a7a34c4b949ff59662bb78b7"},
+    {file = "pytest-8.1.1.tar.gz", hash = "sha256:ac978141a75948948817d360297b7aae0fcb9d6ff6bc9ec6d514b85d5a65c044"},
 ]
 
 [package.dependencies]
@@ -1003,11 +1003,11 @@ colorama = {version = "*", markers = "sys_platform == \"win32\""}
 exceptiongroup = {version = ">=1.0.0rc8", markers = "python_version < \"3.11\""}
 iniconfig = "*"
 packaging = "*"
-pluggy = ">=0.12,<2.0"
-tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
+pluggy = ">=1.4,<2.0"
+tomli = {version = ">=1", markers = "python_version < \"3.11\""}
 
 [package.extras]
-testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
+testing = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
 name = "pytest-flask"
@@ -1350,13 +1350,13 @@ files = [
 
 [[package]]
 name = "sentry-sdk"
-version = "1.43.0"
+version = "1.44.0"
 description = "Python client for Sentry (https://sentry.io)"
 optional = false
 python-versions = "*"
 files = [
-    {file = "sentry-sdk-1.43.0.tar.gz", hash = "sha256:41df73af89d22921d8733714fb0fc5586c3461907e06688e6537d01a27e0e0f6"},
-    {file = "sentry_sdk-1.43.0-py2.py3-none-any.whl", hash = "sha256:8d768724839ca18d7b4c7463ef7528c40b7aa2bfbf7fe554d5f9a7c044acfd36"},
+    {file = "sentry-sdk-1.44.0.tar.gz", hash = "sha256:f7125a9235795811962d52ff796dc032cd1d0dd98b59beaced8380371cd9c13c"},
+    {file = "sentry_sdk-1.44.0-py2.py3-none-any.whl", hash = "sha256:eb65289da013ca92fad2694851ad2f086aa3825e808dc285bd7dcaf63602bb18"},
 ]
 
 [package.dependencies]
@@ -1624,13 +1624,13 @@ watchdog = ["watchdog (>=2.3)"]
 
 [[package]]
 name = "wsgidav"
-version = "4.3.0"
+version = "4.3.2"
 description = "Generic and extendable WebDAV server based on WSGI"
 optional = false
 python-versions = "*"
 files = [
-    {file = "WsgiDAV-4.3.0-py3-none-any.whl", hash = "sha256:2cc21151485670f83004cbf0617fa6b104f877e2954b92682fe2c87551810cf7"},
-    {file = "WsgiDAV-4.3.0.tar.gz", hash = "sha256:9814bf0cd370046a4b1d7fecb7093d4c32c44fc689dc272e8e6d33a70a5960c5"},
+    {file = "WsgiDAV-4.3.2-py3-none-any.whl", hash = "sha256:9645fdb799332840c3646dddbf0750624166da719285113e5d17c1f2d1ccd40a"},
+    {file = "WsgiDAV-4.3.2.tar.gz", hash = "sha256:4c3c24ac01b656a9edcb0014f31717ca8b9a3ec7d7cd9adc39d9ce1b00bfe759"},
 ]
 
 [package.dependencies]
@@ -1671,4 +1671,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "ec990a9df2f95b8b3954d8bf6d9dea33d1ee35b6d3a8626116ece6610c202063"
+content-hash = "94b40bde3d3b9c6efac412ecfabf5dc6c96178f47dfdaa3487fda3ba71fc927a"
