@@ -734,13 +734,13 @@ traitlets = "*"
 
 [[package]]
 name = "jupyterhub"
-version = "4.1.4"
+version = "4.1.5"
 description = "JupyterHub: A multi-user server for Jupyter notebooks"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyterhub-4.1.4-py3-none-any.whl", hash = "sha256:c6cd33a07f614a61bf9a40106e5187275986f108164cdcc39dd0157d50631c67"},
-    {file = "jupyterhub-4.1.4.tar.gz", hash = "sha256:773c82bfeed9a57daabda32579cf834d553827337600368320e822e73f6c92dd"},
+    {file = "jupyterhub-4.1.5-py3-none-any.whl", hash = "sha256:1d88da0ff2abaf0c17c4893f7e933f2279877f991a2af94f6f33ef0904e7fcda"},
+    {file = "jupyterhub-4.1.5.tar.gz", hash = "sha256:63ba1fc718436c151946a58a3b403ec4fe8b3f624fb195bc1d8e70c39b33e194"},
 ]
 
 [package.dependencies]
@@ -1350,13 +1350,13 @@ files = [
 
 [[package]]
 name = "sentry-sdk"
-version = "1.44.0"
+version = "1.44.1"
 description = "Python client for Sentry (https://sentry.io)"
 optional = false
 python-versions = "*"
 files = [
-    {file = "sentry-sdk-1.44.0.tar.gz", hash = "sha256:f7125a9235795811962d52ff796dc032cd1d0dd98b59beaced8380371cd9c13c"},
-    {file = "sentry_sdk-1.44.0-py2.py3-none-any.whl", hash = "sha256:eb65289da013ca92fad2694851ad2f086aa3825e808dc285bd7dcaf63602bb18"},
+    {file = "sentry-sdk-1.44.1.tar.gz", hash = "sha256:24e6a53eeabffd2f95d952aa35ca52f0f4201d17f820ac9d3ff7244c665aaf68"},
+    {file = "sentry_sdk-1.44.1-py2.py3-none-any.whl", hash = "sha256:5f75eb91d8ab6037c754a87b8501cc581b2827e923682f593bed3539ce5b3999"},
 ]
 
 [package.dependencies]
@@ -1671,4 +1671,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "94b40bde3d3b9c6efac412ecfabf5dc6c96178f47dfdaa3487fda3ba71fc927a"
+content-hash = "bc19d65542857f46f197f57d8017392b7aae51eddf18147556e164260863ffed"
