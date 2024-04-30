@@ -270,7 +270,7 @@ def list_dir(user, path):
         (path or '')
     )
 
-    cert_key = cert_key_from_path(None)
+    cert_key = cert_key_from_path(path)
     with get_upstream_session(user, cert_key) as upstream_session:
         r = upstream_session.request(
             'PROPFIND', upstream_url, headers={'Depth': '1'})
@@ -347,7 +347,7 @@ def fetch(user, path):
     filename = os.path.basename(path)
 
     try:
-        cert_key = cert_key_from_path(None)
+        cert_key = cert_key_from_path(path)
         context = get_upstream_session(user, cert_key)
         upstream_session = context.__enter__()
     except Exception:
@@ -427,7 +427,7 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    cert_key = cert_key_from_path(None)
+    cert_key = cert_key_from_path(path)
     with get_upstream_session(user, cert_key) as upstream_session:
         r = upstream_session.request('MKCOL', baseurl)
 
@@ -526,7 +526,7 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    cert_key = cert_key_from_path(None)
+    cert_key = cert_key_from_path(path)
     with get_upstream_session(user, cert_key) as upstream_session:
         res = upstream_session.request(
             method=request.method,
