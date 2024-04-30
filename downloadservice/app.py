@@ -92,6 +92,8 @@ def create_app():
         os.getenv('CTADS_UPSTREAM_BASEFOLDER', 'lst').strip('/')
     app.config['CTADS_UPSTREAM_UPLOAD_FOLDERS'] = os.getenv(
         'CTADS_UPSTREAM_UPLOAD_FOLDERS', 'lst,cta').split(',')
+    app.config['CTACS_ALLOWED_CERT_KEYS'] = os.getenv(
+        'CTACS_ALLOWED_CERT_KEY', 'lst,cta,arc').split(',')
     app.config['CTADS_UPSTREAM_HEALTH_BASEFOLDER'] = \
         os.getenv('CTADS_UPSTREAM_HEALTH_BASEFOLDER', 'cta').strip('/')
 
@@ -108,6 +110,20 @@ app = create_app()
 def handle_certificate_error(e):
     sentry_sdk.capture_exception(e)
     return e.message, 400
+
+
+def cert_key_from_path(path):
+    cert_key = 'arc'
+    if path is None or path == '':
+        return cert_key
+
+    try:
+        root = path.split('/')[0]
+        if root in app.config['CTACS_ALLOWED_CERT_KEYS']:
+            cert_key = root
+    except IndexError:
+        pass
+    return cert_key
 
 
 def authenticated(f):
@@ -167,7 +183,7 @@ def login(user):
 
 
 @contextmanager
-def get_upstream_session(user=None):
+def get_upstream_session(user, certificate_key):
     with tempfile.TemporaryDirectory() as tmpdir:
         if user is None:
             raise Exception("Missing user")
@@ -182,7 +198,11 @@ def get_upstream_session(user=None):
 
             r = requests.get(
                 urljoin_multipart(os.environ['CTACS_URL'], '/certificate'),
-                params={'service-token': service_token, 'user': username})
+                params={
+                    'service-token': service_token,
+                    'user': username,
+                    'certificate_key': certificate_key,
+                })
 
             if r.status_code != 200:
                 logger.error(
@@ -220,7 +240,8 @@ def storage_status():
     )
 
     # Find another way to check without any token
-    with get_upstream_session('shared::certificate') as upstream_session:
+    cert_key = cert_key_from_path(None)
+    with get_upstream_session('shared::certificate', cert_key) as upstream_session:
         try:
             r = upstream_session.request('PROPFIND', url, headers={
                                          'Depth': '1'}, timeout=10)
@@ -249,7 +270,8 @@ def list_dir(user, path):
         (path or '')
     )
 
-    with get_upstream_session(user) as upstream_session:
+    cert_key = cert_key_from_path(None)
+    with get_upstream_session(user, cert_key) as upstream_session:
         r = upstream_session.request(
             'PROPFIND', upstream_url, headers={'Depth': '1'})
 
@@ -325,7 +347,8 @@ def fetch(user, path):
     filename = os.path.basename(path)
 
     try:
-        context = get_upstream_session(user)
+        cert_key = cert_key_from_path(None)
+        context = get_upstream_session(user, cert_key)
         upstream_session = context.__enter__()
     except Exception:
         context.__exit__(None, None, None)
@@ -404,7 +427,8 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    with get_upstream_session(user) as upstream_session:
+    cert_key = cert_key_from_path(None)
+    with get_upstream_session(user, cert_key) as upstream_session:
         r = upstream_session.request('MKCOL', baseurl)
 
         stats = dict(total_written=0)
@@ -502,7 +526,8 @@ def webdav(user, path):
         while (buf := request.stream.read(default_chunk_size)) != b'':
             yield buf
 
-    with get_upstream_session(user) as upstream_session:
+    cert_key = cert_key_from_path(None)
+    with get_upstream_session(user, cert_key) as upstream_session:
         res = upstream_session.request(
             method=request.method,
             url=urljoin_multipart(API_HOST, path),
