@@ -118,7 +118,7 @@ def cert_key_from_path(path):
         return cert_key
 
     try:
-        root = path.split('/')[0]
+        root = path.strip('/').split('/')[0]
         if root in app.config['CTACS_ALLOWED_CERT_KEYS']:
             cert_key = root
     except IndexError:
