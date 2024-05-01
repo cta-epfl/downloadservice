@@ -202,7 +202,6 @@ def get_upstream_session(user=None):
             upstream_session.cert = cert_file
             upstream_session.verify = cabundle_file
 
-
         yield upstream_session
 
 
