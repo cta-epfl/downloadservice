@@ -202,6 +202,7 @@ def get_upstream_session(user=None):
             upstream_session.cert = cert_file
             upstream_session.verify = cabundle_file
 
+
         yield upstream_session
 
 
@@ -530,7 +531,7 @@ def webdav(user, path):
                 .replace('//', '/')
             return res.content.replace(
                 (':href>'+base_path).encode(),
-                (':href>'+endpoint_prefix+base_path).encode())
+                (':href>'+endpoint_prefix + "/").encode())
 
         return Response(
             prop_content() if is_prop_method else res.content,
