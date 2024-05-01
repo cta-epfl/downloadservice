@@ -530,7 +530,7 @@ def webdav(user, path):
                 .replace('//', '/')
             return res.content.replace(
                 (':href>'+base_path).encode(),
-                (':href>'+endpoint_prefix+base_path).encode())
+                (':href>'+endpoint_prefix + "/").encode())
 
         return Response(
             prop_content() if is_prop_method else res.content,
