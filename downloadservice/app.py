@@ -241,7 +241,8 @@ def storage_status():
 
     # Find another way to check without any token
     cert_key = cert_key_from_path(None)
-    with get_upstream_session('shared::certificate', cert_key) as upstream_session:
+    with get_upstream_session('shared::certificate',
+                              cert_key) as upstream_session:
         try:
             r = upstream_session.request('PROPFIND', url, headers={
                                          'Depth': '1'}, timeout=10)

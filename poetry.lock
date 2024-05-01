@@ -373,7 +373,7 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "ctadata"
-version = "0.4.6"
+version = "0.5.2"
 description = ""
 optional = false
 python-versions = "^3.8"
@@ -390,8 +390,8 @@ webdav4 = "^0.9.8"
 [package.source]
 type = "git"
 url = "https://github.com/cta-epfl/ctadata.git"
-reference = "v0.4.6"
-resolved_reference = "a91b3c0ef77205b4b5ecd71c25059cd84367ad03"
+reference = "v0.5.2"
+resolved_reference = "6b0587af52f8c4e270a43bb542db79b9e1ab8fe0"
 
 [[package]]
 name = "defusedxml"
@@ -682,13 +682,13 @@ files = [
 
 [[package]]
 name = "jsonschema"
-version = "4.21.1"
+version = "4.22.0"
 description = "An implementation of JSON Schema validation for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jsonschema-4.21.1-py3-none-any.whl", hash = "sha256:7996507afae316306f9e2290407761157c6f78002dcf7419acb99822143d1c6f"},
-    {file = "jsonschema-4.21.1.tar.gz", hash = "sha256:85727c00279f5fa6bedbe6238d2aa6403bedd8b4864ab11207d07df3cc1b2ee5"},
+    {file = "jsonschema-4.22.0-py3-none-any.whl", hash = "sha256:ff4cfd6b1367a40e7bc6411caec72effadd3db0bbe5017de188f2d6108335802"},
+    {file = "jsonschema-4.22.0.tar.gz", hash = "sha256:5b22d434a45935119af990552c862e5d6d564e8f6601206b305a61fdf661a2b7"},
 ]
 
 [package.dependencies]
@@ -1671,4 +1671,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "3f6a1a8940308c674b1b12f0efe8ceeafb8abadf18285d9774b0fb9d0d04b442"
+content-hash = "0755b60d500285b50a1881dea185b9dc0b2460f0c55794ea0a416ffa37d43423"
