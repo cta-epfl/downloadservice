@@ -123,7 +123,7 @@ def cert_key_from_path(path):
     try:
         root = path.strip('/').split('/')[0]
         if root in app.config['CTACS_ALLOWED_CERT_KEYS']:
-            cert_key = root            
+            cert_key = root
     except IndexError as e:
         logger.info('cert_key_from_path: error while parsing path %s', path, e)
 
@@ -404,8 +404,10 @@ def upload(user, path):
             joined_path = urljoin_multipart(base_folder, 'users')
             _, status_code = list_dir(
                 path=joined_path)
-            
-            logger.info('trying base_folder %s and joined_url %s returns %s', path, joined_path, status_code)
+
+            logger.info(
+                'trying base_folder %s and joined_url %s returns %s', path,
+                joined_path, status_code)
 
             if status_code not in [200, 207]:
                 continue
@@ -416,7 +418,8 @@ def upload(user, path):
         except Exception as e:
             logger.error('Error while checking folder %s: %s', base_folder, e)
 
-    logger.info('selected_base_folder %s joined_path %s', selected_base_folder, joined_path)
+    logger.info('selected_base_folder %s joined_path %s',
+                selected_base_folder, joined_path)
 
     if selected_base_folder is None:
         return 'Access denied', \
@@ -442,7 +445,7 @@ def upload(user, path):
     logger.info('uploading to base upstream url %s', baseurl)
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
-    
+
     cert_key = cert_key_from_path(joined_path)
     logger.info('cert key from path %s is %s', joined_path, cert_key)
     with get_upstream_session(user, cert_key) as upstream_session:
