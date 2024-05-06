@@ -113,16 +113,22 @@ def handle_certificate_error(e):
 
 
 def cert_key_from_path(path):
+    logger.info('cert_key_from_path for path=%s', path)
+
     cert_key = 'arc'
     if path is None or path == '':
+        logger.info('cert_key_from_path: no path, returning %s', cert_key)
         return cert_key
 
     try:
         root = path.strip('/').split('/')[0]
         if root in app.config['CTACS_ALLOWED_CERT_KEYS']:
-            cert_key = root
-    except IndexError:
-        pass
+            cert_key = root            
+    except IndexError as e:
+        logger.info('cert_key_from_path: error while parsing path %s', path, e)
+
+    logger.info('cert_key_from_path: returning %s', cert_key)
+
     return cert_key
 
 
@@ -392,6 +398,7 @@ def upload(user, path):
     # check if upload folder is accessible
     potential_folders = app.config['CTADS_UPSTREAM_UPLOAD_FOLDERS']
     selected_base_folder = None
+    joined_path = None
     for base_folder in potential_folders:
         try:
             joined_path = urljoin_multipart(base_folder, 'users')
@@ -408,6 +415,8 @@ def upload(user, path):
 
         except Exception as e:
             logger.error('Error while checking folder %s: %s', base_folder, e)
+
+    logger.info('selected_base_folder %s joined_path %s', selected_base_folder, joined_path)
 
     if selected_base_folder is None:
         return 'Access denied', \
@@ -433,8 +442,9 @@ def upload(user, path):
     logger.info('uploading to base upstream url %s', baseurl)
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
-
+    
     cert_key = cert_key_from_path(joined_path)
+    logger.info('cert key from path %s is %s', joined_path, cert_key)
     with get_upstream_session(user, cert_key) as upstream_session:
         r = upstream_session.request('MKCOL', baseurl)
 
