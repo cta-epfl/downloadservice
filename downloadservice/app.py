@@ -394,10 +394,16 @@ def upload(user, path):
     selected_base_folder = None
     for base_folder in potential_folders:
         try:
+            joined_url = urljoin_multipart(base_folder, 'users')
             _, status_code = list_dir(
-                path=urljoin_multipart(base_folder, 'users'))
-            if status_code not in [200, 207]:
+                path=joined_url)
+            
+            logger.info('trying base_folder %s and joined_url %s returns %s', path, joined_url, status_code)
+
+            # NOTE: 404 is observed for some reason from dcache at this time
+            if status_code not in [200, 207, 404]:
                 continue
+
             selected_base_folder = base_folder
             break
         except Exception:
