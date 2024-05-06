@@ -394,20 +394,20 @@ def upload(user, path):
     selected_base_folder = None
     for base_folder in potential_folders:
         try:
-            joined_url = urljoin_multipart(base_folder, 'users')
+            joined_path = urljoin_multipart(base_folder, 'users')
             _, status_code = list_dir(
-                path=joined_url)
+                path=joined_path)
             
-            logger.info('trying base_folder %s and joined_url %s returns %s', path, joined_url, status_code)
+            logger.info('trying base_folder %s and joined_url %s returns %s', path, joined_path, status_code)
 
-            # NOTE: 404 is observed for some reason from dcache at this time
-            if status_code not in [200, 207, 404]:
+            if status_code not in [200, 207]:
                 continue
 
             selected_base_folder = base_folder
             break
-        except Exception:
-            pass
+
+        except Exception as e:
+            logger.error('Error while checking folder %s: %s', base_folder, e)
 
     if selected_base_folder is None:
         return 'Access denied', \
@@ -434,7 +434,7 @@ def upload(user, path):
     logger.info('uploading to upstream url %s', url)
     logger.info('uploading chunk size %s', chunk_size)
 
-    cert_key = cert_key_from_path(path)
+    cert_key = cert_key_from_path(joined_path)
     with get_upstream_session(user, cert_key) as upstream_session:
         r = upstream_session.request('MKCOL', baseurl)
 
