@@ -443,13 +443,13 @@ dotenv = ["python-dotenv"]
 
 [[package]]
 name = "flask-cors"
-version = "4.0.0"
+version = "4.0.1"
 description = "A Flask extension adding a decorator for CORS support"
 optional = false
 python-versions = "*"
 files = [
-    {file = "Flask-Cors-4.0.0.tar.gz", hash = "sha256:f268522fcb2f73e2ecdde1ef45e2fd5c71cc48fe03cffb4b441c6d1b40684eb0"},
-    {file = "Flask_Cors-4.0.0-py2.py3-none-any.whl", hash = "sha256:bc3492bfd6368d27cfe79c7821df5a8a319e1a6d5eab277a3794be19bdc51783"},
+    {file = "Flask_Cors-4.0.1-py2.py3-none-any.whl", hash = "sha256:f2a704e4458665580c074b714c4627dd5a306b333deb9074d0b1794dfa2fb677"},
+    {file = "flask_cors-4.0.1.tar.gz", hash = "sha256:eeb69b342142fdbf4766ad99357a7f3876a2ceb77689dc10ff912aac06c389e4"},
 ]
 
 [package.dependencies]
@@ -1350,13 +1350,13 @@ files = [
 
 [[package]]
 name = "sentry-sdk"
-version = "2.0.1"
+version = "2.1.1"
 description = "Python client for Sentry (https://sentry.io)"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "sentry_sdk-2.0.1-py2.py3-none-any.whl", hash = "sha256:b54c54a2160f509cf2757260d0cf3885b608c6192c2555a3857e3a4d0f84bdb3"},
-    {file = "sentry_sdk-2.0.1.tar.gz", hash = "sha256:c278e0f523f6f0ee69dc43ad26dcdb1202dffe5ac326ae31472e012d941bee21"},
+    {file = "sentry_sdk-2.1.1-py2.py3-none-any.whl", hash = "sha256:99aeb78fb76771513bd3b2829d12613130152620768d00cd3e45ac00cb17950f"},
+    {file = "sentry_sdk-2.1.1.tar.gz", hash = "sha256:95d8c0bb41c8b0bc37ab202c2c4a295bb84398ee05f4cdce55051cd75b926ec1"},
 ]
 
 [package.dependencies]
@@ -1368,6 +1368,7 @@ urllib3 = ">=1.26.11"
 
 [package.extras]
 aiohttp = ["aiohttp (>=3.5)"]
+anthropic = ["anthropic (>=0.16)"]
 arq = ["arq (>=0.23)"]
 asyncpg = ["asyncpg (>=0.23)"]
 beam = ["apache-beam (>=2.12)"]
@@ -1383,6 +1384,8 @@ flask = ["blinker (>=1.1)", "flask (>=0.11)", "markupsafe"]
 grpcio = ["grpcio (>=1.21.1)"]
 httpx = ["httpx (>=0.16.0)"]
 huey = ["huey (>=2)"]
+huggingface-hub = ["huggingface-hub (>=0.22)"]
+langchain = ["langchain (>=0.0.210)"]
 loguru = ["loguru (>=0.5)"]
 openai = ["openai (>=1.0.0)", "tiktoken (>=0.3.0)"]
 opentelemetry = ["opentelemetry-distro (>=0.35b0)"]
@@ -1624,13 +1627,13 @@ watchdog = ["watchdog (>=2.3)"]
 
 [[package]]
 name = "wsgidav"
-version = "4.3.2"
+version = "4.3.3"
 description = "Generic and extendable WebDAV server based on WSGI"
 optional = false
 python-versions = "*"
 files = [
-    {file = "WsgiDAV-4.3.2-py3-none-any.whl", hash = "sha256:9645fdb799332840c3646dddbf0750624166da719285113e5d17c1f2d1ccd40a"},
-    {file = "WsgiDAV-4.3.2.tar.gz", hash = "sha256:4c3c24ac01b656a9edcb0014f31717ca8b9a3ec7d7cd9adc39d9ce1b00bfe759"},
+    {file = "WsgiDAV-4.3.3-py3-none-any.whl", hash = "sha256:8d96b0f05ad7f280572e99d1c605962a853d715f8e934298555d0c47ef275e88"},
+    {file = "wsgidav-4.3.3.tar.gz", hash = "sha256:5f0ad71bea72def3018b6ba52da3bcb83f61e0873c27225344582805d6e52b9e"},
 ]
 
 [package.dependencies]
@@ -1671,4 +1674,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "0755b60d500285b50a1881dea185b9dc0b2460f0c55794ea0a416ffa37d43423"
+content-hash = "8962d5b0eb061015dec2ac143b05a8197d0f1a4ba1e2d602e6d2be3ffed00029"
