@@ -11,7 +11,7 @@ sentry-sdk = {extras = ["flask"], version = "^2.1.1"}
 importlib-metadata = "^7.0.0"
 pyopenssl = "^24.0.0"
 flask-cors = "^4.0.1"
-waitress = "^3.0.0"
+cheroot = "^10.0.1"
 
 [tool.poetry.group.jupyterhub.dependencies]
 jupyterhub = "^4.1.5"
@@ -25,7 +25,6 @@ pytest = "^8.1.1"
 psutil = "^5.9.5"
 pytest-flask = "^1.2.0"
 pytest-timeout = "^2.1.0"
-cheroot = "^10.0.1"
 xmltodict = "^0.13.0"
 webdav4 = "^0.9.8"
 wsgidav = "^4.3.3"
