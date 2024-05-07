@@ -147,7 +147,7 @@ def testing_download_service(pytestconfig):
                 C = '\033[34m'
 
             print(f"{C}following server: {line.rstrip()}{NC}")
-            m = re.search(r"Running on (.*?:5000)", line)
+            m = re.search(r"INFO:waitress:Serving on (.*?:5000)", line)
             if m:
                 # alternatively get from configenv
                 url_store[0] = m.group(1).strip()
