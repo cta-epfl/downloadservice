@@ -5,6 +5,7 @@ from downloadservice.app import app
 from cheroot.wsgi import PathInfoDispatcher
 from cheroot.wsgi import Server
 
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
 
