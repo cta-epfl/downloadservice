@@ -169,6 +169,8 @@ def authenticated(f):
 
             if user:
                 return f(user, *args, **kwargs)
+            elif request.headers.get("Content-Type").lower() == "application/json":
+                return {'message': 'Invalid or missing Bearer token'}, 401
             else:
                 # redirect to login url on failed auth
                 state = auth.generate_state(next_url=request.path)

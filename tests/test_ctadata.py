@@ -96,6 +96,27 @@ def test_apiclient_upload_single_file(testing_download_service):
             assert os.path.isfile(remote_file)
 
 
+@pytest.mark.timeout(240)
+def test_apiclient_upload_single_large_file(testing_download_service):
+    with upstream_webdav_server() as (server_dir, _):
+        ctadata.APIClient.downloadservice = testing_download_service['url']
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            origin_file = f"{tmpdir}/local-file"
+            generate_random_file(origin_file, 1474801635)
+
+            remote_path = 'example-files/example-file'
+            r = ctadata.upload_file(origin_file, remote_path)
+
+            restored_file = f"{tmpdir}/restored-file"
+            ctadata.fetch_and_save_file(r['path'], restored_file)
+
+            assert hash_file(origin_file) == hash_file(restored_file)
+
+            remote_file = f"{server_dir}/lst/users/anonymous/{remote_path}"
+            assert os.path.isfile(remote_file)
+
+
 @pytest.mark.timeout(30)
 def test_apiclient_upload_invalid_path(testing_download_service):
     with upstream_webdav_server():
